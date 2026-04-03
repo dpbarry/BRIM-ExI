@@ -1,0 +1,197 @@
+﻿CLAUDE BUILDER CLUB @ MCGILL
+  
+PRESENTS
+Claude Builders Hackathon at McGill
+AI Hackathon 2026
+Saturday, April 4th, 2026
+10:00 AM - 6:00 PM
+Trottier Engineering Building, McGill
+________________
+
+
+EVENT OVERVIEW
+Date
+	Saturday, April 4th, 2026
+	Time
+	10:00 AM - 6:00 PM (8 hours)
+	Location
+	TR0100, Trottier Engineering Building, McGill
+	Capacity
+	160 participants (curated selection)
+	Team Size
+	Solo or teams of up to 3 people
+	Cost
+	FREE for all participants
+	ABOUT US
+The Claude Builder Club (CBC) is McGill University's premier community for AI fluency and responsible AI development, established in partnership with Anthropic
+Our Mission
+We teach students the difference between true AI engineering and "AI slop." Through workshops, hackathons, and hands-on projects, we emphasize responsible AI usage where engineers maintain ownership of their work through proper feedback loops and domain expertise.
+What We Provide
+* Free Claude Pro accounts for all McGill members
+* API credits for development
+* Weekly workshops on AI fluency and Claude Code  (Anthropic's 4D Framework: Delegation, Description, Discernment, Diligence)
+* Community of 140+ members from all majors, no technical background required
+* Career preparation and technical leadership opportunities
+Open to All: While we're McGill's CBC chapter, this hackathon welcomes students from all universities and institutions. You don't need to be a McGill student to participate!
+________________
+
+
+HACKATHON THEME: SOCIAL IMPACT
+Inspired by Anthropic CEO Dario Amodei's essay Machines of Loving Grace, this hackathon asks one question: how can AI help people flourish?
+We're not looking for solutions to hypothetical problems. We want tools built for specific people facing real challenges. We want to see your thinking as much as your code.
+Five tracks:
+1. Biology & Physical Health. Healthcare is expensive, inaccessible, and confusing. Build something that helps people access care, understand their health, or navigate complex medical systems.
+Examples: 
+* Diagnostic aids for underserved clinics
+* Patient education platforms 
+* Medication adherence tools
+* Symptom assessment and triage 
+* Health literacy for treatment decisions 
+* Accessibility tools for people with disabilities navigating healthcare
+Track-specific ethical considerations:
+* Medical accuracy - when should this hand off to a real professional?
+* Privacy of deeply sensitive health data
+* Bias in medical AI across different populations
+* Transparency about limitations and when professional care is needed
+2. Neuroscience & Mental Health. There aren't enough therapists. Stigma keeps people from seeking help. Geography and insurance gate good care. Build tools that expand access to mental health support and understanding.
+Examples: 
+* Always-available therapeutic support using evidence-based approaches  
+* Mental health literacy and psychoeducation 
+* Tools for recognizing when you need professional help 
+* Stress and burnout prevention 
+* Peer support facilitation 
+* Accessibility tools for neurodivergent individuals
+Track-specific ethical considerations:
+* Crisis situations - when does someone need immediate human intervention?
+* Privacy and stigma around mental health data
+* Avoiding harm through bad psychological advice
+* Cultural competence in mental health approaches
+* Transparency about what AI therapy can and can't do
+* Not replacing human connection when it's needed
+
+
+3. Economic Empowerment & Education. Talent is everywhere. Opportunity isn't. Remove barriers to learning, skill-building, and economic advancement for people currently locked out.
+Examples: 
+* Adaptive tutoring  
+* Career transition guidance  
+* Financial literacy for underserved communities 
+* Job interview prep 
+* Small business/nonprofit support 
+* Scholarship matching 
+* Practical language learning
+Track-specific ethical considerations:
+* Who gets excluded by your design (tech requirements, literacy levels, language)?
+* Impact of bad advice when guiding careers or education
+* Empowering informed choices vs. making choices for people
+* Cultural assumptions about what "success" means
+
+
+4. Governance & Collaboration. Democratic institutions are strained. Civic participation is falling. Build something that helps people engage, deliberate, and make collective decisions.
+(Track 4 has been removed)
+5. Creative Flourishing. As AI handles routine work, questions of human purpose grow urgent. Amplify creativity. Preserve culture. Help people find meaning.
+Every team must answer three questions:
+* Who are you building this for, and why do they need it?
+* What could go wrong, and what would you do about it?
+* How does this help people rather than make decisions for them?
+Examples: 
+* Community storytelling platforms
+* Music/art education with real-time feedback  
+* Writing development tools 
+* Language preservation 
+* Skill development for crafts/instruments 
+* Intergenerational knowledge exchange 
+* Purpose exploration guides
+Track-specific ethical considerations:
+* Keeping humans as creators using tools (not AI as creator with human prompter)
+* Enhancing vs. short-cutting the creative process in ways that diminish it
+* Cultural appropriation vs. respectful celebration
+* Homogenization of creative voices
+* Creating vs. destroying value for creative workers
+
+
+Three sub-challenges: 
+1. Rootly Sub-Challenge: Engineer Wellbeing
+About Rootly
+Rootly builds incident management software for engineering teams. When production breaks, Rootly helps teams respond fast, coordinate across tools, and learn from what went wrong. 
+The Problem
+On-call rotations are a hidden health risk. Engineers get paged at 2 AM, work through weekends, and absorb stress that never shows up in a Jira ticket. Rootly built On-Call Health to measure this burnout risk: tracking workload, alert volume, and shift patterns to surface who is at risk before they burn out.
+The Challenge
+You can do either option 1 or 2 or both:
+1. Build a project that uses at least one of these tools to address a real problem in engineer health, incident response, or team operations:
+* Rootly MCP Server — 99 tools covering incidents, schedules, escalation policies, on-call shifts, and more. Connect it to Claude to resolve incidents, generate handoff summaries, or analyze team patterns.
+* MCP On-Call Health — An MCP server for the On-Call Health API. Analyze burnout risk, query workload data, and surface at-risk responders directly from your AI assistant.
+* Rootly CLI — Command-line access to the Rootly API. Build scripts, automations, or developer tools on top of it.
+2. Build on top of Rootly (their main product). If you proceed with this option, please let us know on discord, we will provide you Rootly credentials. 
+This sub-challenge sits within the Neuroscience & Mental Health track. Your project can also qualify for the main track prize.
+2. PCare+ Sub-Challenge: 
+* Best Project in Bio and Physical Health
+3. Brim Financial Sub-Challenge: 
+You can do either option 1 or 2:
+1. AI-Powered Expense Intelligence for SMBs
+2. Cross-Border Payment System Design
+For Brim, we pick the best of each (there will be 2 winning projects). Either way, your project can also qualify for the main prize.
+
+
+________________
+HOW TO INTEGRATE CLAUDE CODE
+Option 1: Claude Code Workflows. Use Claude Code as your AI pair programmer in the terminal. Push to GitHub and tag Claude AI as a collaborator. For example: Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com> Show how you maintained ownership through code review and architectural decisions.
+Option 2: Claude API Integration. Build applications using Claude's API. Implement conversational AI, document analysis, code generation, or content creation. Demonstrate proper prompt engineering, error handling, and rate limiting. McGill students get free 25$ in API credits by attending one of the workshops, please show up 1 week before the hackathon to claim it.
+Option 3: Hybrid. Use Claude Code to build your infrastructure and Claude API for runtime, user-facing features. AI pair programming plus AI-powered functionality.
+What we don't want:
+* Projects you can't explain technically
+* Shallow wrappers around Claude API calls with no added value
+* Harmful applications or ethical violations
+* Copy-paste solutions where you didn't maintain engineering ownership
+
+
+________________
+EVENT SCHEDULE
+We heard you. The building period is now extended.
+You also get 3 days of planning and pre-building, starting April 1st. This is optional. We encourage it for two reasons: it gives you flexibility around exams, and it helps you avoid hitting your Claude Pro usage limit on the day itself. If your team starts early, use the hackathon day to gather feedback and iterate, not just to finish.
+At least one team member must be present at both the opening and closing ceremonies. Missing either disqualifies your submission.
+
+
+10:00 AM
+	Check-in at TR0100, Trottier Engineering Building, McGill
+Registration, prices revealed, team formation (if needed), venue orientation
+	10:30 AM
+	Opening Ceremony
+Welcome from CBC McGill leadership, sponsors and partners introduction, judging criteria, rules and guidelines
+	11:00 AM
+	🚀 Hacking Begins (or Continues)!
+	12:30 PM
+	Lunch Provided
+Pizza, salads, beverages 
+	3:00 PM
+	Afternoon Snack Break (coffee + chips)
+	4:00 PM
+	⏰ Project Submission Deadline
+All submissions must be in by this time
+	4:15 PM
+	Judging & Demo Presentations
+Teams present to judges (5 min demo per team)
+	5:45 PM
+	🏆 Awards Ceremony
+Winner announcements and prize distribution
+	6:00 PM
+	Event Concludes
+	________________
+JUDGING CRITERIA
+Projects will be evaluated on four key dimensions::
+Real-World Impact
+25%
+	• Does this solve a real problem? Who benefits and how? Could it scale?
+	Technical Execution
+30%
+	• Does it work? Is it well-built? Does it use AI effectively?
+	Ethical Alignment
+25%
+	• Does it center human dignity? Does it address potential harms? Does it expand access equitably?
+	Presentation Quality
+20%
+	•Can you clearly explain what you built and why it matters?
+	⚠️ CRITICAL: You MUST be able to explain your technical stack and architectural decisions. Using AI coding tools is encouraged, but you own the project, not the AI. Some judges will ask technical questions.
+Organized by the Claude Builder Club @ McGill
+Building AI fluency, one responsible project at a time.
+In partnership with Anthropic
+© 2026 Claude Builder Club McGill. All rights reserved.
