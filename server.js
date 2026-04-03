@@ -10,12 +10,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/compliance', require('./routes/compliance'));
 app.use('/api/approvals', require('./routes/approvals'));
 app.use('/api/reports', require('./routes/reports'));
-
-app.get('/api/employees', (_req, res) => {
-  const { getDb } = require('./db');
-  const employees = getDb().prepare('SELECT id, name, department FROM employees ORDER BY name').all();
-  res.json(employees);
-});
+app.use('/api/employees', require('./routes/employees'));
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
