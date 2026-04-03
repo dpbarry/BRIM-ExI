@@ -150,7 +150,7 @@
                             <div class="pc-panel__head pc-panel__head--row pc-panel__head--violations">
                                 <div class="pc-view-tabs" role="tablist" aria-label="Compliance views">
                                     <button type="button" class="pc-view-tab is-active" data-subtab="violations" role="tab" aria-selected="true">
-                                        <svg class="pc-view-tab__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 5.25 3.8 18.75Q3.2 19.8 4.4 19.8H19.6Q20.8 19.8 20.2 18.75L12.6 5.25Q12 4.2 11.4 5.25Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17.2" r="0.95" fill="currentColor" stroke="none"/></svg>
+                                        <svg class="pc-view-tab__icon pc-view-tab__icon--violations" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 5.25 3.8 18.75Q3.2 19.8 4.4 19.8H19.6Q20.8 19.8 20.2 18.75L12.6 5.25Q12 4.2 11.4 5.25Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17.2" r="0.95" fill="currentColor" stroke="none"/></svg>
                                         Violations
                                     </button>
                                     <button type="button" class="pc-view-tab" data-subtab="leaderboard" role="tab" aria-selected="false">
@@ -167,9 +167,9 @@
         },
         {
             id: "pre-approval",
-            title: "AI Pre-Approval Workflow",
-            navLabel: "AI pre-approval workflow",
-            render: () => centeredTitle("AI Pre-Approval Workflow"),
+            title: "Approve Requests",
+            navLabel: "Approve requests",
+            render: () => centeredTitle("Approve Requests"),
         },
         {
             id: "expense-reports",
@@ -1232,6 +1232,13 @@
                 () => dialog.close(),
                 { signal }
             );
+            dialog?.addEventListener(
+                "click",
+                (e) => {
+                    if (e.target === dialog) dialog.close();
+                },
+                { signal }
+            );
         }
 
         attachPolicyHandlers(view, section) {
@@ -1659,7 +1666,7 @@
                 const dismissBtn = document.createElement("button");
                 dismissBtn.type = "button";
                 dismissBtn.className = "dlg__btn dlg__btn--dismiss";
-                dismissBtn.textContent = "Dismiss";
+                dismissBtn.textContent = "Mark as not violation";
                 dismissBtn.addEventListener("click", () => {
                     openDismissDialog(viol, close);
                 });

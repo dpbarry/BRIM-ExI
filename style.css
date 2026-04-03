@@ -13,6 +13,7 @@
     --color-accent-active: #0082ad;
     --color-accent-subtle: rgba(0, 184, 230, 0.12);
     --color-accent-border: rgba(0, 184, 230, 0.35);
+    --color-accent-muted-dark: #1a5c6e;
     --color-border: #d2d8de;
     --color-focus-ring: rgba(0, 184, 230, 0.45);
     --color-ink: #112434;
@@ -53,6 +54,7 @@ html[data-theme="dark"] {
     --color-accent-active: #5ee0ff;
     --color-accent-subtle: rgba(61, 211, 245, 0.14);
     --color-accent-border: rgba(61, 211, 245, 0.42);
+    --color-accent-muted-dark: #355a6a;
     --color-border: #2a3340;
     --color-focus-ring: rgba(61, 211, 245, 0.45);
     --color-ink: #e4eaf0;
@@ -1368,14 +1370,13 @@ html[data-theme="dark"] {
 
 .rule-row {
     display: flex;
-    align-items: flex-start;
-    gap: 0.55rem;
-    padding: 0.38rem 1rem 0.38rem 0.9rem;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 1rem 0.5rem 0.9rem;
     transition: background var(--motion-fast) ease;
 }
 
-.rule-row:hover,
-.rule-row:focus-within {
+.rule-row:hover:not(:focus-within) {
     background: var(--color-bg-muted);
 }
 
@@ -1387,7 +1388,6 @@ html[data-theme="dark"] {
 .rule-row__num {
     flex-shrink: 0;
     width: 1.5rem;
-    padding-top: 0.22rem;
     font-size: 0.7rem;
     font-weight: 600;
     color: var(--color-text-muted);
@@ -1404,24 +1404,30 @@ html[data-theme="dark"] {
     line-height: 1.6;
     outline: none;
     word-break: break-word;
-    border-radius: 0.28rem;
-    padding: 0.1rem 0.3rem;
-    margin: -0.1rem -0.3rem;
-    transition: background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+    min-height: 2.5rem;
+    border-radius: 0.45rem;
+    padding: 0.4rem 0.3rem;
+    margin: 0;
+    border: 1.5px solid transparent;
+    background: transparent;
+    transition:
+        background var(--motion-fast) ease,
+        border-color var(--motion-fast) ease,
+        box-shadow var(--motion-fast) ease;
 }
 
 .rule-row__input:focus {
-    background: var(--color-bg-muted);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    background: var(--color-bg-elevated);
+    border-color: var(--color-accent-muted-dark);
 }
 
 .rule-row__del {
     flex-shrink: 0;
-    width: 1.5rem;
-    height: 1.5rem;
-    margin-top: 0.14rem;
+    align-self: center;
+    width: 1.65rem;
+    height: 1.65rem;
     border: 0;
-    border-radius: 0.35rem;
+    border-radius: 0.4rem;
     background: transparent;
     color: var(--color-text-muted);
     display: flex;
@@ -1525,6 +1531,11 @@ html[data-theme="dark"] {
     flex-shrink: 0;
     opacity: 0.65;
     transition: color var(--motion-fast) ease, opacity var(--motion-fast) ease;
+}
+
+.pc-view-tab__icon--violations {
+    width: 1.05rem;
+    height: 1.05rem;
 }
 
 .pc-view-tab:hover .pc-view-tab__icon {
