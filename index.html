@@ -11,21 +11,44 @@
 </head>
 <body>
     <div class="app-layout">
+        <script>
+            try {
+                /* Key must match STORAGE.sidebarExpanded in app.js */
+                if (localStorage.getItem("exi.sidebarExpanded") === "1") {
+                    document.documentElement.classList.add("sidebar-snap");
+                    document.currentScript.parentElement.classList.add("app-layout--sidebar-expanded");
+                }
+            } catch (e) {}
+        </script>
         <aside class="sidebar" aria-label="Primary navigation">
             <nav class="sidebar__nav" id="sidebarNav" aria-label="Pages"></nav>
             <div class="sidebar__footer">
+                <button type="button" class="sidebar-expand-btn" id="sidebarExpandToggle" aria-expanded="false" aria-controls="sidebarNav" aria-label="Expand sidebar">
+                    <svg class="sidebar-expand-btn__chevron" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 6l6 6-6 6"/>
+                    </svg>
+                    <span class="sidebar-expand-btn__text">Collapse</span>
+                </button>
                 <button type="button" class="theme-btn" id="themeToggle" aria-label="Use dark mode" title="Appearance">
-                    <svg class="theme-btn__icon theme-btn__icon--sun" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
-                        <path fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" d="M12 2v1.65M12 20.35V22M4.22 4.22l1.17 1.17M18.61 18.61l1.17 1.17M2 12h1.65M20.35 12H22M4.22 19.78l1.17-1.17M18.61 5.39l1.17-1.17"/>
-                    </svg>
-                    <svg class="theme-btn__icon theme-btn__icon--moon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79z"/>
-                    </svg>
+                    <span class="theme-btn__icons" aria-hidden="true">
+                        <svg class="theme-btn__icon theme-btn__icon--sun" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+                            <path fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" d="M12 2v1.65M12 20.35V22M4.22 4.22l1.17 1.17M18.61 18.61l1.17 1.17M2 12h1.65M20.35 12H22M4.22 19.78l1.17-1.17M18.61 5.39l1.17-1.17"/>
+                        </svg>
+                        <svg class="theme-btn__icon theme-btn__icon--moon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79z"/>
+                        </svg>
+                    </span>
+                    <span class="theme-btn__label" aria-hidden="true">Theme</span>
                 </button>
                 <details class="account-dock" id="accountDock">
                     <summary class="account-dock__button" aria-label="Switch account">
-                        <span class="account-dock__initial" id="accountInitial">A</span>
+                        <span class="account-dock__inner">
+                            <span class="account-dock__badge">
+                                <span class="account-dock__initial" id="accountInitial">A</span>
+                            </span>
+                            <span class="account-dock__name" id="accountDisplayName" aria-hidden="true">Admin</span>
+                        </span>
                     </summary>
                     <div class="account-dock__panel" id="accountPanel" role="menu" aria-label="Account"></div>
                 </details>
@@ -35,6 +58,7 @@
             <div class="route-stage" id="routeStage"></div>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
     <script src="app.js" defer></script>
 </body>
 </html>
