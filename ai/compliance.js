@@ -1,6 +1,7 @@
 // ai/compliance.js
 const Anthropic = require('@anthropic-ai/sdk');
 const { COMPLIANCE_TOOLS, executeTool } = require('./tools');
+const { getDb } = require('../db');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,10 +17,17 @@ Instructions:
 5. Only flag clear violations — do not flag ambiguous transactions
 6. After scanning, return a brief summary of what you found`;
 
-const MAX_ITERATIONS = 20;
+const MAX_ITERATIONS = 12;
 
 async function runComplianceScan() {
-  const messages = [{ role: 'user', content: 'Please run a full compliance scan on all employee transactions from the last 60 days.' }];
+  const db = getDb();
+  const scanned = db.prepare('SELECT DISTINCT transaction_id FROM violations').all();
+  const scannedIds = scanned.map(r => r.transaction_id);
+  const exclusionNote = scannedIds.length > 0
+    ? `\n\nThese transaction IDs are already flagged — do NOT re-flag them: [${scannedIds.join(', ')}]. Focus only on transactions NOT in this list.`
+    : '';
+
+  const messages = [{ role: 'user', content: `Please run a compliance scan on employee transactions from the last 60 days.${exclusionNote}` }];
 
   let response;
   let iterations = 0;

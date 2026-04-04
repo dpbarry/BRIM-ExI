@@ -26,7 +26,7 @@ CHART SELECTION:
 
 DATA NOTES:
 - Dates stored as YYYY-MM-DD strings. Dataset covers Aug 2025 to Mar 2026.
-- Currency: conversion_rate = 0 means amount is already CAD. Otherwise CAD = amount × conversion_rate. Always aggregate in CAD.
+- Currency: all amounts are pre-normalized to CAD. Use the amount column directly — do not apply conversion_rate.
 - Employees: John Smith, Sarah Chen, Marcus Webb, Dylan Park, Priya Nair, James Okafor, Aisha Mensah, Tom Vasquez, Kenji Tanaka, Rachel Torres.
 - Departments: Sales, Marketing, Engineering, Logistics, Finance, Operations, HR.`;
 
