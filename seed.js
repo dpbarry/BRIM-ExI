@@ -59,6 +59,13 @@ const POLICY_RULES = [
   { rule_text: 'Meal tips are capped at 20%; service and porterage tips are capped at 15%.', category: 'meals', threshold: null },
 ];
 
+function scaleTxAmount(rawAmount) {
+  if (rawAmount <= 200)   return rawAmount;
+  if (rawAmount <= 2000)  return 200 + (rawAmount - 200) * 0.20;
+  if (rawAmount <= 20000) return 560 + (rawAmount - 2000) * 0.05;
+  return Math.min(1460 + (rawAmount - 20000) * 0.01, 2500);
+}
+
 function excelDateToString(val) {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString().split('T')[0];
@@ -107,8 +114,10 @@ async function runSeed() {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws);
 
-  // dept → employees round-robin counter
-  const deptCounters = {};
+  // Global round-robin across all employees — prevents any one employee from
+  // accumulating thousands of transactions due to dominant MCC categories in the xlsx
+  const allEmpIds = EMPLOYEES.map(emp => empIds[emp.name]);
+  let globalCounter = 0;
 
   const insertTx = db.prepare(`
     INSERT INTO transactions
@@ -121,11 +130,12 @@ async function runSeed() {
   const insertMany = db.transaction((rows) => {
     for (const row of rows) {
       const mcc = parseInt(row['Merchant Category Code']) || null;
-      const dept = MCC_TO_DEPT[mcc] || 'Finance';
-      const empList = deptToEmpIds[dept] || deptToEmpIds['Finance'];
-      if (!deptCounters[dept]) deptCounters[dept] = 0;
-      const empId = empList[deptCounters[dept] % empList.length];
-      deptCounters[dept]++;
+      const empId = allEmpIds[globalCounter % allEmpIds.length];
+      globalCounter++;
+
+      const rawAmount = parseFloat(row['Transaction Amount']) || 0;
+      const convRate = parseFloat(row['Conversion Rate']) || 0;
+      const cadAmount = convRate > 0 ? rawAmount * convRate : rawAmount;
 
       insertTx.run(
         String(row['Transaction Code'] || ''),
@@ -134,14 +144,14 @@ async function runSeed() {
         excelDateToString(row['Posting date of transaction']),
         excelDateToString(row['Transaction Date']),
         row['Merchant Info DBA Name'] || '',
-        parseFloat(row['Transaction Amount']) || 0,
+        scaleTxAmount(cadAmount),
         row['Debit or Credit'] || 'Debit',
         mcc,
         String(row['Merchant City'] || ''),
         row['Merchant Country'] || '',
         String(row['Merchant Postal Code'] || ''),
         row['Merchant State/Province'] || '',
-        parseFloat(row['Conversion Rate']) || 0,
+        0,  // amounts pre-normalized to CAD — no further conversion needed
         empId
       );
     }
@@ -184,6 +194,61 @@ async function runSeed() {
       `Hotel/airfare booking at ${tx.merchant_name} ($${tx.amount.toFixed(2)}) — verify booking was made via approved travel portal.`,
       `Transaction category suggests direct hotel/airline booking. Policy requires use of approved travel portal.`
     );
+  }
+
+  // Seed concentrated violations for Aisha Mensah (repeat offender pattern)
+  const aisha = db.prepare("SELECT id FROM employees WHERE name = 'Aisha Mensah'").get();
+  if (aisha) {
+    const mealRuleId = ruleIds[3]; // "Client meal expenses capped at $75..."
+
+    // 1. Travel portal violations (top 3 hotel/airline transactions)
+    const aishaTravelTxs = db.prepare(
+      `SELECT * FROM transactions WHERE employee_id = ? AND (mcc = 7011 OR (mcc >= 3500 AND mcc <= 3640)) ORDER BY amount DESC LIMIT 3`
+    ).all(aisha.id);
+    for (const tx of aishaTravelTxs) {
+      const existing = db.prepare('SELECT id FROM violations WHERE transaction_id = ? AND rule_id = ?').get(tx.id, travelRuleId);
+      if (!existing) {
+        insertViolation.run(
+          aisha.id, tx.id, travelRuleId, tx.amount, tx.merchant_name, tx.transaction_date,
+          'med',
+          `Hotel/airfare booking at ${tx.merchant_name} ($${tx.amount.toFixed(2)}) — verify booking via approved travel portal. This is a recurring pattern for this employee.`,
+          `Repeated direct hotel/airline booking. Policy requires travel portal. Pattern of non-compliance detected.`
+        );
+      }
+    }
+
+    // 2. Large purchase violations ($500+ without pre-approval)
+    const aishaLargeTxs = db.prepare(
+      `SELECT * FROM transactions WHERE employee_id = ? AND amount > 500 AND type = 'Debit' ORDER BY amount DESC LIMIT 2`
+    ).all(aisha.id);
+    for (const tx of aishaLargeTxs) {
+      const existing = db.prepare('SELECT id FROM violations WHERE transaction_id = ? AND rule_id = ?').get(tx.id, approvalRuleId);
+      if (!existing) {
+        const severity = tx.amount > 2000 ? 'high' : 'med';
+        insertViolation.run(
+          aisha.id, tx.id, approvalRuleId, tx.amount, tx.merchant_name, tx.transaction_date,
+          severity,
+          `Transaction of $${tx.amount.toFixed(2)} at ${tx.merchant_name} exceeds $500 approval threshold. No pre-authorization on file. Third offense this quarter.`,
+          `Amount exceeds $500 pre-approval policy. No approval record found. Employee has prior violations.`
+        );
+      }
+    }
+
+    // 3. Meal cap violation (highest restaurant transaction over $75)
+    const aishaMealTx = db.prepare(
+      `SELECT * FROM transactions WHERE employee_id = ? AND mcc IN (5812, 5813, 5814) ORDER BY amount DESC LIMIT 1`
+    ).get(aisha.id);
+    if (aishaMealTx && aishaMealTx.amount > 75) {
+      const existing = db.prepare('SELECT id FROM violations WHERE transaction_id = ? AND rule_id = ?').get(aishaMealTx.id, mealRuleId);
+      if (!existing) {
+        insertViolation.run(
+          aisha.id, aishaMealTx.id, mealRuleId, aishaMealTx.amount, aishaMealTx.merchant_name, aishaMealTx.transaction_date,
+          'low',
+          `Restaurant charge of $${aishaMealTx.amount.toFixed(2)} at ${aishaMealTx.merchant_name} exceeds the $75/person client meal cap.`,
+          `Amount exceeds meal policy cap. Documentation of attendees and business purpose required.`
+        );
+      }
+    }
   }
 
   console.log('Seeded violations.');
