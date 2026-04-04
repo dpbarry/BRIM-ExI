@@ -187,7 +187,37 @@
             id: "pre-approval",
             title: "Approve Requests",
             navLabel: "Approve requests",
-            render: () => centeredTitle("Approve Requests"),
+            render: (state) => state.account === "Admin"
+                ? `<section class="page approvals-page">
+                    <header class="page-header">
+                        <h1 class="page-header__title">Pre-Approval Requests</h1>
+                        <div class="page-header__actions">
+                            <select id="statusFilter" class="filter-select">
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="denied">Denied</option>
+                                <option value="all">All</option>
+                            </select>
+                        </div>
+                    </header>
+                    <div id="submissionsList" class="submissions-list">Loading…</div>
+                    <div id="approvalPanel" class="approval-panel hidden"></div>
+                   </section>`
+                : `<section class="page approvals-page">
+                    <header class="page-header">
+                        <h1 class="page-header__title">Submit Expense Request</h1>
+                    </header>
+                    <form id="submitRequestForm" class="request-form">
+                        <label class="request-form__label" for="requestText">Describe your expense request</label>
+                        <textarea id="requestText" class="request-form__textarea"
+                            placeholder="e.g. Hi, I'm John from Sales. I need approval for $850 for a client dinner at a downtown restaurant." rows="5"></textarea>
+                        <button type="submit" class="btn btn--primary">Submit Request</button>
+                    </form>
+                    <div id="mySubmissions" class="submissions-list" style="margin-top:2rem">
+                        <h2 class="section-title">My Requests</h2>
+                        <div id="mySubmissionsBody">Loading…</div>
+                    </div>
+                   </section>`,
         },
         {
             id: "expense-reports",
@@ -1174,6 +1204,138 @@
                         });
                     })
                     .catch(() => { grid.innerHTML = `<p class="gallery-empty">Failed to load charts.</p>`; });
+                return;
+            }
+            if (routeId === "pre-approval") {
+                if (this.state.account === "Admin") {
+                    const loadSubmissions = (status) => {
+                        const list = view.querySelector("#submissionsList");
+                        list.innerHTML = "Loading…";
+                        fetch(`/api/approvals?status=${status}`)
+                            .then(r => r.json())
+                            .then(subs => {
+                                if (!subs.length) {
+                                    list.innerHTML = `<p class="empty-state">No ${status} requests.</p>`;
+                                    return;
+                                }
+                                list.innerHTML = subs.map(s => `
+                                    <div class="submission-row" data-id="${s.id}">
+                                        <div class="submission-row__info">
+                                            <span class="submission-row__name">${s.parsed_name}</span>
+                                            <span class="submission-row__dept">${s.parsed_department}</span>
+                                            <span class="submission-row__purpose">${s.parsed_purpose}</span>
+                                        </div>
+                                        <div class="submission-row__meta">
+                                            <span class="submission-row__amount">$${Number(s.parsed_amount).toFixed(2)}</span>
+                                            <span class="badge badge--${s.status}">${s.status}</span>
+                                        </div>
+                                    </div>
+                                `).join("");
+                                list.querySelectorAll(".submission-row").forEach(row => {
+                                    row.addEventListener("click", () => openApprovalPanel(row.dataset.id));
+                                });
+                            })
+                            .catch(() => { list.innerHTML = `<p class="empty-state">Failed to load submissions.</p>`; });
+                    };
+
+                    loadSubmissions("pending");
+
+                    view.querySelector("#statusFilter")?.addEventListener("change", e => loadSubmissions(e.target.value));
+
+                    const openApprovalPanel = async (id) => {
+                        const panel = view.querySelector("#approvalPanel");
+                        panel.classList.remove("hidden");
+                        panel.innerHTML = `<div class="approval-panel__loading">Generating AI recommendation…</div>`;
+                        panel.scrollIntoView({ behavior: "smooth" });
+                        try {
+                            const res = await fetch(`/api/approvals/${id}`);
+                            if (!res.ok) throw new Error("fetch failed");
+                            const data = await res.json();
+                            panel.innerHTML = `
+                                <div class="approval-panel__header">
+                                    <h3>${data.parsed_name} — $${Number(data.parsed_amount).toFixed(2)}</h3>
+                                    <p class="approval-panel__purpose">${data.parsed_purpose}</p>
+                                </div>
+                                <div class="approval-panel__recommendation">
+                                    <h4>AI Analysis</h4>
+                                    <p>${data.recommendation}</p>
+                                </div>
+                                <div class="approval-panel__actions">
+                                    <label class="approval-panel__note-label">Decision Note</label>
+                                    <textarea id="decisionNote" class="approval-panel__note">${data.shortNote || ''}</textarea>
+                                    <div class="approval-panel__btns">
+                                        <button class="btn btn--approve" data-action="approved" data-id="${id}">✓ Approve</button>
+                                        <button class="btn btn--deny"    data-action="denied"   data-id="${id}">✗ Deny</button>
+                                    </div>
+                                </div>
+                            `;
+                            panel.querySelectorAll("[data-action]").forEach(btn => {
+                                btn.addEventListener("click", async () => {
+                                    const note = panel.querySelector("#decisionNote").value;
+                                    btn.disabled = true;
+                                    await fetch(`/api/approvals/${id}/decide`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ action: btn.dataset.action, note }),
+                                    });
+                                    panel.classList.add("hidden");
+                                    loadSubmissions(view.querySelector("#statusFilter").value);
+                                });
+                            });
+                        } catch {
+                            panel.innerHTML = `<p class="empty-state">Failed to load recommendation.</p>`;
+                        }
+                    };
+
+                } else {
+                    // John's view
+                    fetch("/api/approvals?status=all")
+                        .then(r => r.json())
+                        .then(subs => {
+                            const body = view.querySelector("#mySubmissionsBody");
+                            if (!subs.length) { body.innerHTML = `<p class="empty-state">No requests yet.</p>`; return; }
+                            body.innerHTML = subs.map(s => `
+                                <div class="submission-row">
+                                    <div class="submission-row__info">
+                                        <span class="submission-row__purpose">${s.parsed_purpose}</span>
+                                    </div>
+                                    <div class="submission-row__meta">
+                                        <span class="submission-row__amount">$${Number(s.parsed_amount).toFixed(2)}</span>
+                                        <span class="badge badge--${s.status}">${s.status}</span>
+                                        <span class="submission-row__date">${new Date(s.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            `).join("");
+                        })
+                        .catch(() => {});
+
+                    view.querySelector("#submitRequestForm")?.addEventListener("submit", async (e) => {
+                        e.preventDefault();
+                        const text = view.querySelector("#requestText").value.trim();
+                        if (!text) return;
+                        const btn = e.target.querySelector("button[type=submit]");
+                        btn.disabled = true;
+                        btn.textContent = "Submitting…";
+                        try {
+                            const res = await fetch("/api/approvals", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ raw_request: text }),
+                            });
+                            if (!res.ok) throw new Error("submit failed");
+                            view.querySelector("#requestText").value = "";
+                            btn.textContent = "Submitted!";
+                            setTimeout(() => {
+                                btn.disabled = false;
+                                btn.textContent = "Submit Request";
+                                this.navigate("pre-approval");
+                            }, 1500);
+                        } catch {
+                            btn.disabled = false;
+                            btn.textContent = "Failed — Retry";
+                        }
+                    });
+                }
                 return;
             }
             if (routeId !== DEFAULT_ROUTE) {
