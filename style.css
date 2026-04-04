@@ -2929,6 +2929,20 @@ html[data-theme="dark"] .btn--deny:hover {
     color: var(--color-text-secondary);
 }
 
+.sr-row__delete {
+    margin-left: 0.1rem;
+    color: var(--color-text-secondary);
+}
+
+.sr-row__delete:hover:not(:disabled) {
+    color: #ff4f64;
+}
+
+.sr-row__delete:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .reports-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -3119,6 +3133,21 @@ html[data-theme="dark"] .btn--deny:hover {
     margin: 0;
 }
 
+.reports-result--loading {
+    justify-content: center;
+}
+
+.reports-result__loading {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reports-result--loading .msg__loading {
+    padding: 0;
+}
+
 .reports-result--success {
     border-color: color-mix(in srgb, #16a34a 40%, var(--color-border));
     background: color-mix(in srgb, #16a34a 8%, var(--color-bg-elevated));
@@ -3197,6 +3226,11 @@ html[data-theme="dark"] .btn--deny:hover {
 
 .request-designer__actions {
     justify-content: flex-end;
+}
+
+.request-designer__status {
+    flex: 1 1 auto;
+    min-width: 12rem;
 }
 
 .gallery-empty,

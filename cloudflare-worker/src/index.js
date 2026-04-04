@@ -1613,6 +1613,17 @@ export default {
         return jsonResponse(request, env, 200, { ...submission, recommendation, shortNote });
       }
 
+      if (/^\/api\/approvals\/\d+$/.test(pathname) && request.method === "DELETE") {
+        const id = Number(pathname.split("/").pop());
+        const submission = await d1First(env, "SELECT id, status FROM submissions WHERE id = ?", [id]);
+        if (!submission) return jsonResponse(request, env, 404, { error: "Submission not found." });
+        if (submission.status !== "pending") {
+          return jsonResponse(request, env, 409, { error: "Only pending submissions can be deleted." });
+        }
+        await d1Run(env, "DELETE FROM submissions WHERE id = ?", [id]);
+        return jsonResponse(request, env, 200, { success: true, id });
+      }
+
       if (/^\/api\/approvals\/\d+\/decide$/.test(pathname) && request.method === "POST") {
         const id = Number(pathname.split("/")[3]);
         const body = await parseBody(request);

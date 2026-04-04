@@ -262,9 +262,9 @@
                                     </div>
                                 </div>
                                 <div class="reports-designer__actions request-designer__actions">
+                                    <div id="requestResult" class="reports-result request-designer__status" role="status" aria-live="polite" hidden></div>
                                     <button type="button" id="submitRequestBtn" class="btn btn--primary">Submit Request</button>
                                 </div>
-                                <div id="submitFeedback" class="sr-feedback" hidden></div>
                             </div>
                         </div>
                         <div class="pc-panel ux-panel">
@@ -1957,7 +1957,7 @@
                                     return;
                                 }
                                 body.innerHTML = mine.map(s => `
-                                    <div class="submission-row sr-row">
+                                    <div class="submission-row sr-row" data-id="${s.id}">
                                         <div class="submission-row__info">
                                             <span class="submission-row__purpose">${escHtml(s.parsed_purpose || "Expense request")}</span>
                                             <span class="submission-row__date">${new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
@@ -1965,9 +1965,42 @@
                                         <div class="submission-row__meta">
                                             <span class="submission-row__amount">${formatCurrency(s.parsed_amount || 0)}</span>
                                             <span class="badge badge--${s.status}">${s.status}</span>
+                                            ${s.status === "pending" ? `
+                                            <button
+                                                type="button"
+                                                class="reports-designer__icon-btn sr-row__delete"
+                                                data-delete-id="${s.id}"
+                                                aria-label="Delete pending request"
+                                                title="Delete pending request"
+                                            >
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M3 6h18"/>
+                                                    <path d="M8 6V4.6A1.6 1.6 0 0 1 9.6 3h4.8A1.6 1.6 0 0 1 16 4.6V6"/>
+                                                    <path d="M6.8 6l.95 13.2A1.8 1.8 0 0 0 9.54 21h4.92a1.8 1.8 0 0 0 1.79-1.8L17.2 6"/>
+                                                    <path d="M10 10v7"/>
+                                                    <path d="M14 10v7"/>
+                                                </svg>
+                                            </button>
+                                            ` : ""}
                                         </div>
                                     </div>
                                 `).join("");
+                                body.querySelectorAll("[data-delete-id]").forEach((btn) => {
+                                    btn.addEventListener("click", async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const deleteId = Number(btn.getAttribute("data-delete-id"));
+                                        if (!Number.isInteger(deleteId) || deleteId <= 0) return;
+                                        btn.disabled = true;
+                                        try {
+                                            const res = await apiFetch(`/api/approvals/${deleteId}`, { method: "DELETE" });
+                                            if (!res.ok) throw new Error("delete failed");
+                                            loadMyRequests();
+                                        } catch {
+                                            btn.disabled = false;
+                                        }
+                                    });
+                                });
                             })
                             .catch(() => {
                                 body.innerHTML = `<p class="empty-state">Failed to load requests.</p>`;
@@ -2011,17 +2044,38 @@
                         return true;
                     };
 
+                    const requestResultEl = view.querySelector("#requestResult");
+                    const setRequestStatus = (message, type = "muted") => {
+                        if (!requestResultEl) return;
+                        const text = String(message || "").trim();
+                        if (!text) {
+                            requestResultEl.hidden = true;
+                            requestResultEl.innerHTML = "";
+                            return;
+                        }
+                        requestResultEl.hidden = false;
+                        requestResultEl.className = `reports-result request-designer__status reports-result--${type}`;
+                        requestResultEl.innerHTML = `<p>${escHtml(text)}</p>`;
+                    };
+                    const setRequestStatusLoading = (label = "Thinking…") => {
+                        if (!requestResultEl) return;
+                        requestResultEl.hidden = false;
+                        requestResultEl.className = "reports-result request-designer__status reports-result--loading";
+                        requestResultEl.innerHTML = `
+                            <div class="reports-result__loading" role="status" aria-label="${escHtml(label)}">
+                                <div class="msg__loading"><span></span><span></span><span></span></div>
+                            </div>
+                        `;
+                    };
+
                     view.querySelector("#aiFillRequestBtn")?.addEventListener("click", async () => {
-                        const feedback = view.querySelector("#submitFeedback");
-                        if (!feedback) return;
                         const text = String(textarea?.value || "").trim();
                         if (!text) {
-                            feedback.textContent = "Write a request first, then click sparkle to autofill.";
-                            feedback.className = "sr-feedback sr-feedback--error";
-                            feedback.hidden = false;
+                            setRequestStatus("Write a request first, then click sparkle to autofill.", "error");
                             textarea?.focus();
                             return;
                         }
+                        setRequestStatusLoading("Autofilling request");
                         let didFill = false;
                         if (supportsAiApprovalParse) {
                             try {
@@ -2055,12 +2109,10 @@
                             didFill = applyPromptAutofillFallback();
                         }
                         if (!didFill) {
-                            feedback.textContent = "Could not infer fields from that text. Add amount/date details and try again.";
-                            feedback.className = "sr-feedback sr-feedback--error";
-                            feedback.hidden = false;
+                            setRequestStatus("Could not infer fields from that text. Add amount/date details and try again.", "error");
                             return;
                         }
-                        feedback.hidden = true;
+                        setRequestStatus("Fields autofilled from your request.", "success");
                     });
                     textarea?.addEventListener("keydown", (e) => {
                         if (e.key !== "Enter" || e.shiftKey) return;
@@ -2077,13 +2129,12 @@
                         const rawText = String(textarea?.value || "").trim();
                         if (!purpose && !rawText) return;
                         const amountNum = amountRaw ? parseFloat(amountRaw.replace(/[^0-9.]/g, "")) : null;
-                        const feedback = view.querySelector("#submitFeedback");
                         const btn = view.querySelector("#submitRequestBtn");
                         const synthesizedRaw = rawText || `${purpose || "Expense request"}${amountRaw ? ` for $${amountRaw}` : ""}${dateRaw ? ` on ${dateRaw}` : ""}`;
 
                         btn.disabled = true;
                         btn.textContent = "Submitting…";
-                        feedback.hidden = true;
+                        setRequestStatus("", "muted");
                         try {
                             const res = await apiFetch("/api/approvals", {
                                 method: "POST",
@@ -2103,19 +2154,15 @@
                             if (purposeInput) purposeInput.value = "";
                             this.setDateInputValue(dateInput, "");
                             syncCharCount();
-                            feedback.textContent = "✓ Request submitted — finance will be notified.";
-                            feedback.className = "sr-feedback sr-feedback--success";
-                            feedback.hidden = false;
+                            setRequestStatus("Request submitted — finance will be notified.", "success");
                             btn.textContent = "Submit Request";
                             btn.disabled = false;
                             loadMyRequests();
                             setTimeout(() => {
-                                feedback.hidden = true;
+                                setRequestStatus("", "muted");
                             }, 4000);
                         } catch {
-                            feedback.textContent = "Something went wrong. Please try again.";
-                            feedback.className = "sr-feedback sr-feedback--error";
-                            feedback.hidden = false;
+                            setRequestStatus("Something went wrong. Please try again.", "error");
                             btn.disabled = false;
                             btn.textContent = "Submit Request";
                         }
@@ -2148,6 +2195,16 @@
                     resultEl.hidden = false;
                     resultEl.className = `reports-result reports-result--${type}`;
                     resultEl.innerHTML = `<p>${escHtml(text)}</p>`;
+                };
+                const setStatusLoading = (label = "Thinking…") => {
+                    if (!resultEl) return;
+                    resultEl.hidden = false;
+                    resultEl.className = "reports-result reports-result--loading";
+                    resultEl.innerHTML = `
+                        <div class="reports-result__loading" role="status" aria-label="${escHtml(label)}">
+                            <div class="msg__loading"><span></span><span></span><span></span></div>
+                        </div>
+                    `;
                 };
 
                 const getSelectedDepartments = () => {
@@ -2268,7 +2325,8 @@
                         promptEl?.focus();
                         return;
                     }
-                    setBusy(true, "Thinking…", "Thinking…");
+                    setBusy(true);
+                    setStatusLoading("Autofilling report filters");
                     try {
                         const res = await apiFetch("/api/reports/filters/parse", {
                             method: "POST",
