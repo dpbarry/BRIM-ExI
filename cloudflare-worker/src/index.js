@@ -814,10 +814,19 @@ async function sendApprovalEmail(env, submission, recommendation, token) {
 
 function corsHeaders(request, env) {
   const reqOrigin = request.headers.get("Origin") || "";
-  const allowed = String(env.CORS_ORIGIN || "*");
-  const allowOrigin = allowed === "*" ? "*" : reqOrigin === allowed ? reqOrigin : "";
+  const rawAllowed = String(env.CORS_ORIGIN || "*").trim();
+  const allowedList = rawAllowed
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const allowsAll = allowedList.includes("*");
+  const allowOrigin = allowsAll
+    ? "*"
+    : allowedList.includes(reqOrigin)
+      ? reqOrigin
+      : "";
   return {
-    "Access-Control-Allow-Origin": allowOrigin || allowed,
+    "Access-Control-Allow-Origin": allowOrigin || (allowsAll ? "*" : (allowedList[0] || "")),
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
