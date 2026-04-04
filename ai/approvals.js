@@ -2,7 +2,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { APPROVAL_TOOLS, executeTool } = require('./tools');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 });
 
 const PARSE_SYSTEM = `You are an expense request parser. Extract structured information from a free-text employee expense request.
 Return a JSON object with these exact keys:

@@ -225,15 +225,46 @@
                             <div class="ux-panel__head">
                                 <h2 class="ux-panel__title">New Request</h2>
                             </div>
-                            <form id="submitRequestForm" class="request-form" autocomplete="off">
+                            <!-- Step 1: Textarea -->
+                            <div id="requestStep" class="request-form">
                                 <textarea id="requestText" class="request-form__textarea"
                                     aria-label="Expense request details"
                                     placeholder="e.g. I need approval for $850 for a client dinner at Harbour House on April 12th." rows="4" autocomplete="off" spellcheck="false"></textarea>
                                 <div class="request-form__footer">
                                     <span id="requestCharCount" class="request-form__charcount">0 / 500</span>
-                                    <button type="submit" class="btn btn--primary">Submit Request</button>
+                                    <button type="button" id="reviewRequestBtn" class="btn btn--primary">Review Request</button>
                                 </div>
-                            </form>
+                            </div>
+                            <!-- Step 2: Review form (hidden until parsed) -->
+                            <div id="reviewStep" class="review-form" hidden>
+                                <div class="review-form__grid">
+                                    <div class="review-form__field">
+                                        <label class="review-form__label" for="reviewName">Name</label>
+                                        <input type="text" id="reviewName" class="review-form__input" value="John Smith" autocomplete="off" />
+                                    </div>
+                                    <div class="review-form__field">
+                                        <label class="review-form__label" for="reviewDepartment">Department</label>
+                                        <input type="text" id="reviewDepartment" class="review-form__input" value="Sales" autocomplete="off" />
+                                    </div>
+                                    <div class="review-form__field">
+                                        <label class="review-form__label" for="reviewAmount">Amount ($)</label>
+                                        <input type="text" id="reviewAmount" class="review-form__input" placeholder="e.g. 850" autocomplete="off" />
+                                    </div>
+                                    <div class="review-form__field">
+                                        <label class="review-form__label" for="reviewDate">Tentative Date</label>
+                                        <input type="text" id="reviewDate" class="review-form__input" placeholder="e.g. 2026-04-12" autocomplete="off" />
+                                    </div>
+                                    <div class="review-form__field review-form__field--full">
+                                        <label class="review-form__label" for="reviewPurpose">Purpose</label>
+                                        <textarea id="reviewPurpose" class="review-form__input review-form__textarea-sm"
+                                            rows="3" placeholder="Describe the expense…" autocomplete="off"></textarea>
+                                    </div>
+                                </div>
+                                <div class="review-form__footer">
+                                    <button type="button" id="editRequestBtn" class="btn btn--ghost">Edit Request</button>
+                                    <button type="button" id="confirmSubmitBtn" class="btn btn--primary">Confirm &amp; Submit</button>
+                                </div>
+                            </div>
                             <div id="submitFeedback" class="sr-feedback" hidden></div>
                         </div>
                         <div class="pc-panel ux-panel">
@@ -338,6 +369,88 @@
 
     function uxLoadingHtml(message) {
         return `<div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">${escHtml(message)}</p></div>`;
+    }
+
+    function parseAmount(text) {
+        const patterns = [
+            /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
+            /\b([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
+            /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
+        ];
+        for (const pat of patterns) {
+            const m = text.match(pat);
+            if (m) {
+                const num = parseFloat(m[1].replace(/,/g, ''));
+                if (Number.isFinite(num) && num > 0) return num;
+            }
+        }
+        return null;
+    }
+
+    function parseTentativeDate(text, today) {
+        today = today || new Date();
+        today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const t = text.toLowerCase();
+        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const addDays = (base, n) => { const d = new Date(base); d.setDate(d.getDate()+n); return d; };
+        const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+        if (/\btomorrow\b/.test(t)) return fmt(addDays(today, 1));
+        if (/\btoday\b/.test(t)) return fmt(today);
+
+        const nextDay = t.match(/\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+        if (nextDay) {
+            const tgt = dayNames.indexOf(nextDay[1]);
+            const diff = ((tgt - today.getDay() + 7) % 7) || 7;
+            return fmt(addDays(today, diff));
+        }
+        const thisDay = t.match(/\bthis\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+        if (thisDay) {
+            const tgt = dayNames.indexOf(thisDay[1]);
+            let diff = (tgt - today.getDay() + 7) % 7; if (!diff) diff = 7;
+            return fmt(addDays(today, diff));
+        }
+        const inN = t.match(/\bin\s+(\d+)\s+(days?|weeks?)\b/);
+        if (inN) return fmt(addDays(today, parseInt(inN[1]) * (/weeks?/.test(inN[2]) ? 7 : 1)));
+
+        const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+        const shortM = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        const allM = [...months, ...shortM].join('|');
+        const resolve = (mStr, dStr) => {
+            const idx = months.indexOf(mStr) !== -1 ? months.indexOf(mStr) : shortM.indexOf(mStr);
+            if (idx === -1) return null;
+            const d = new Date(today.getFullYear(), idx, parseInt(dStr));
+            if (d < today) d.setFullYear(d.getFullYear()+1);
+            return fmt(d);
+        };
+        const md = t.match(new RegExp(`\\b(${allM})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`));
+        if (md) return resolve(md[1], md[2]);
+        const dm = t.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${allM})\\b`));
+        if (dm) return resolve(dm[2], dm[1]);
+
+        const bare = t.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+        if (bare) {
+            const tgt = dayNames.indexOf(bare[1]);
+            let diff = (tgt - today.getDay() + 7) % 7; if (!diff) diff = 7;
+            return fmt(addDays(today, diff));
+        }
+        return null;
+    }
+
+    function parsePurpose(text) {
+        let s = text;
+        s = s.replace(/^I['']m\s+\w+[\.,]?\s*/i, '');
+        s = s.replace(/^I\s+need\s+(?:pre-?)?approval\s+for\s+/i, '');
+        s = s.replace(/^I\s+(?:would\s+like|want)\s+(?:to\s+request\s+)?(?:pre-?)?approval\s+for\s+/i, '');
+        s = s.replace(/\$\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?/gi, '');
+        s = s.replace(/\b[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\s*(?:cad|usd|dollars?)\b/gi, '');
+        s = s.replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '');
+        s = s.replace(/\btomorrow\b|\btoday\b/gi, '');
+        s = s.replace(/\bin\s+\d+\s+(?:days?|weeks?)\b/gi, '');
+        const allM = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec';
+        s = s.replace(new RegExp(`\\b(?:${allM})\\s+\\d{1,2}(?:st|nd|rd|th)?\\b`, 'gi'), '');
+        s = s.replace(new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${allM})\\b`, 'gi'), '');
+        return s.replace(/\s{2,}/g, ' ').replace(/^[,.\s]+|[,.\s]+$/g, '').trim();
     }
 
     const CALENDAR_MONTHS = [
@@ -1694,6 +1807,10 @@
                             `;
                         })();
 
+                        const headerDate = submission.tentative_date
+                            ? new Date(submission.tentative_date + 'T00:00:00').toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                            : null;
+
                         const renderPanel = () => {
                             const recommendationCls = isRecommendationLoading
                                 ? "approval-panel__recommendation approval-panel__recommendation--unified approval-panel__recommendation--loading"
@@ -1713,6 +1830,7 @@
                                 <div class="approval-panel__header">
                                     <h3>${escHtml(headerName)} — ${headerAmount}</h3>
                                     <p class="approval-panel__purpose">${escHtml(headerPurpose)}</p>
+                                    ${headerDate ? `<p class="approval-panel__date">Tentative date: <strong>${escHtml(headerDate)}</strong></p>` : ''}
                                 </div>
                                 <div class="${recommendationCls}">
                                     ${recommendationHtml}
@@ -1847,40 +1965,69 @@
                     textarea?.addEventListener("input", () => {
                         const len = textarea.value.length;
                         charCount.textContent = `${len} / 500`;
-                        charCount.classList.toggle("sr-charcount--warn", len > 450);
+                        charCount.classList.toggle("request-form__charcount--warn", len > 450);
                     });
 
-                    view.querySelector("#submitRequestForm")?.addEventListener("submit", async (e) => {
-                        e.preventDefault();
+                    // Step 1 → Step 2: parse and show review form
+                    view.querySelector("#reviewRequestBtn")?.addEventListener("click", () => {
                         const text = textarea.value.trim();
                         if (!text) return;
-                        const btn = e.target.querySelector("button[type=submit]");
-                        const feedback = view.querySelector("#submitFeedback");
-                        btn.disabled = true;
-                        btn.textContent = "Submitting…";
-                        feedback.hidden = true;
+                        const amount = parseAmount(text);
+                        const dateStr = parseTentativeDate(text);
+                        const purpose = parsePurpose(text);
+                        view.querySelector("#reviewAmount").value  = amount !== null ? String(amount) : '';
+                        view.querySelector("#reviewDate").value    = dateStr || '';
+                        view.querySelector("#reviewPurpose").value = purpose || '';
+                        view.querySelector("#requestStep").hidden  = true;
+                        view.querySelector("#reviewStep").hidden   = false;
+                        view.querySelector("#submitFeedback").hidden = true;
+                    });
+
+                    // Step 2 → Step 1: edit
+                    view.querySelector("#editRequestBtn")?.addEventListener("click", () => {
+                        view.querySelector("#reviewStep").hidden  = true;
+                        view.querySelector("#requestStep").hidden = false;
+                    });
+
+                    // Confirm & Submit
+                    view.querySelector("#confirmSubmitBtn")?.addEventListener("click", async () => {
+                        const name       = view.querySelector("#reviewName").value.trim();
+                        const department = view.querySelector("#reviewDepartment").value.trim();
+                        const amountRaw  = view.querySelector("#reviewAmount").value.trim();
+                        const dateRaw    = view.querySelector("#reviewDate").value.trim();
+                        const purpose    = view.querySelector("#reviewPurpose").value.trim();
+                        const rawText    = textarea.value.trim();
+                        if (!purpose && !rawText) return;
+                        const amountNum  = amountRaw ? parseFloat(amountRaw.replace(/[^0-9.]/g, '')) : null;
+                        const feedback   = view.querySelector("#submitFeedback");
+                        const btn        = view.querySelector("#confirmSubmitBtn");
+                        btn.disabled = true; btn.textContent = "Submitting…"; feedback.hidden = true;
                         try {
                             const res = await apiFetch("/api/approvals", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
+                                body: JSON.stringify({
+                                    raw_request:       `I'm John. ${rawText}`,
+                                    parsed_name:       name,
+                                    parsed_department: department,
+                                    parsed_purpose:    purpose || rawText,
+                                    parsed_amount:     Number.isFinite(amountNum) ? amountNum : 0,
+                                    tentative_date:    dateRaw || null,
+                                }),
                             });
                             if (!res.ok) throw new Error("submit failed");
-                            textarea.value = "";
-                            charCount.textContent = "0 / 500";
+                            textarea.value = ''; charCount.textContent = '0 / 500';
+                            view.querySelector("#reviewStep").hidden  = true;
+                            view.querySelector("#requestStep").hidden = false;
                             feedback.textContent = "✓ Request submitted — finance will be notified.";
-                            feedback.className = "sr-feedback sr-feedback--success";
-                            feedback.hidden = false;
-                            btn.textContent = "Submit Request";
-                            btn.disabled = false;
+                            feedback.className   = "sr-feedback sr-feedback--success";
+                            feedback.hidden = false; btn.textContent = "Confirm & Submit"; btn.disabled = false;
                             loadMyRequests();
                             setTimeout(() => { feedback.hidden = true; }, 4000);
                         } catch {
                             feedback.textContent = "Something went wrong. Please try again.";
-                            feedback.className = "sr-feedback sr-feedback--error";
-                            feedback.hidden = false;
-                            btn.disabled = false;
-                            btn.textContent = "Submit Request";
+                            feedback.className   = "sr-feedback sr-feedback--error";
+                            feedback.hidden = false; btn.disabled = false; btn.textContent = "Confirm & Submit";
                         }
                     });
                 }
@@ -2968,12 +3115,24 @@
 
                 const reprimandBtn = document.createElement("button");
                 reprimandBtn.type = "button";
-                reprimandBtn.className = "dlg__btn dlg__btn--reprimand";
-                reprimandBtn.setAttribute("aria-label", "Reprimand by email");
-                reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Reprimand</span>`;
-                reprimandBtn.addEventListener("click", () => {
-                    reprimandBtn.innerHTML = `${CHECK_SVG}<span>Sent</span>`;
+                reprimandBtn.className = "dlg__btn dlg__btn--notify";
+                reprimandBtn.setAttribute("aria-label", "Notify employee by email");
+                reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Notify Employee</span>`;
+                reprimandBtn.addEventListener("click", async () => {
                     reprimandBtn.disabled = true;
+                    reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Sending\u2026</span>`;
+                    try {
+                        const res = await apiFetch(`/api/compliance/notify/${viol.id}`, { method: "POST" });
+                        if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            throw new Error(data.error || "Failed to send");
+                        }
+                        reprimandBtn.innerHTML = `${CHECK_SVG}<span>Sent</span>`;
+                    } catch (err) {
+                        reprimandBtn.disabled = false;
+                        reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Retry</span>`;
+                        alert(err.message || "Could not send notification email.");
+                    }
                 });
 
                 const dismissBtn = document.createElement("button");
@@ -3121,7 +3280,7 @@
                     date: v.date || "",
                     rule: v.rule_text || "",
                     severity: v.severity,
-                    note: v.reasoning || "",
+                    note: v.note || v.ai_reasoning || "",
                 }));
                 leaderboardData = leaderboard.map(e => ({
                     employee: e.employee,
