@@ -6,12 +6,12 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const PARSE_SYSTEM = `You are an expense request parser. Extract structured information from a free-text employee expense request.
 Return a JSON object with these exact keys:
-- parsed_name: string (employee's full name)
+- parsed_name: string (employee's full name; if they say "I'm John" or "My name is Jane", use that name)
 - parsed_department: string (department if mentioned, otherwise "Unknown")
 - parsed_purpose: string (concise description of what the expense is for)
-- parsed_amount: number (dollar amount, or 0 if not specified)
+- parsed_amount: number (numeric dollar amount only — no $ sign, no commas; e.g. "$1,200" → 1200, "1200 CAD" → 1200, "five hundred dollars" → 500; use 0 only if truly no amount is mentioned)
 
-Return ONLY valid JSON, no other text.`;
+Return ONLY valid JSON with no markdown, no code fences, no extra text.`;
 
 const CONTEXT_SYSTEM = `You are a finance AI reviewing pre-approval expense requests.
 
