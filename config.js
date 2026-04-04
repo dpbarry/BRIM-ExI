@@ -1,10 +1,10 @@
 // For GitHub Pages + Cloudflare Worker deployments, set this to your API origin.
 // Example: window.EXI_API_BASE = "https://exi-api.your-subdomain.workers.dev";
 (() => {
-  const WORKER_API_BASE = "https://exi-api.deanbarry100.workers.dev";
-  const port = window.location.port;
-  const isNodeBackendDev = port === "3000";
-  // Use Worker by default (GitHub Pages + static dev servers like :5500).
-  // Only use same-origin when running the full local Node backend on :3000.
-  window.EXI_API_BASE = window.EXI_API_BASE || (isNodeBackendDev ? "" : WORKER_API_BASE);
+  const WORKER_API_BASE = "https://rpi-backend.com";
+  const host = String(window.location.hostname || "").toLowerCase();
+  const isLocal = host === "localhost" || host === "127.0.0.1";
+  // Local browser sessions should hit local Express so PDF routes work.
+  // Deployed static sites still use the worker API by default.
+  window.EXI_API_BASE = window.EXI_API_BASE || (isLocal ? "http://localhost:3000" : WORKER_API_BASE);
 })();

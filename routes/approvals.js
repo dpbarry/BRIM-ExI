@@ -6,6 +6,18 @@ const { getDb } = require('../db');
 const { parseRequest, generateRecommendation } = require('../ai/approvals');
 const { sendApprovalEmail } = require('../email');
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '$0';
+  const hasCents = Math.abs(amount % 1) > 0.000001;
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 function persistRecommendation(db, submissionId, recommendation) {
   try {
     db.prepare(`
@@ -60,12 +72,13 @@ router.get('/decide', (req, res) => {
 
   const status = action === 'approve' ? 'approved' : 'denied';
   db.prepare(`UPDATE submissions SET status = ?, decided_at = datetime('now'), decision_token = NULL WHERE id = ?`).run(status, submission.id);
+  const formattedAmount = formatCurrency(submission.parsed_amount);
 
   res.send(`<html><body style="font-family:sans-serif;padding:2rem;max-width:480px;margin:auto">
     <h2 style="color:${status === 'approved' ? '#16a34a' : '#dc2626'}">
       Request ${status.charAt(0).toUpperCase() + status.slice(1)}
     </h2>
-    <p><strong>${submission.parsed_name}</strong>'s request for <strong>$${submission.parsed_amount}</strong> (${submission.parsed_purpose}) has been <strong>${status}</strong>.</p>
+    <p><strong>${submission.parsed_name}</strong>'s request for <strong>${formattedAmount}</strong> (${submission.parsed_purpose}) has been <strong>${status}</strong>.</p>
     <p style="color:#6b7280;font-size:0.875rem">You can close this tab.</p>
   </body></html>`);
 });
@@ -86,31 +99,19 @@ router.get('/', (req, res) => {
 
 // POST /api/approvals  — new submission from employee
 router.post('/', async (req, res) => {
-  const { raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date } = req.body;
+  const { raw_request } = req.body;
   if (!raw_request) return res.status(400).json({ error: 'raw_request required' });
 
   try {
     const db = getDb();
-
-    let parsed;
-    if (parsed_name) {
-      // Client pre-parsed: skip AI round-trip
-      parsed = {
-        parsed_name:       String(parsed_name).trim()            || 'Unknown',
-        parsed_department: String(parsed_department || '').trim() || 'Unknown',
-        parsed_purpose:    String(parsed_purpose || '').trim()    || raw_request.slice(0, 140),
-        parsed_amount:     Number.isFinite(Number(parsed_amount)) ? Number(parsed_amount) : 0,
-      };
-    } else {
-      parsed = await parseRequest(raw_request);
-    }
+    const parsed = await parseRequest(raw_request);
 
     const employee = db.prepare(`SELECT * FROM employees WHERE name LIKE ?`).get(`%${(parsed.parsed_name || '').split(' ')[0]}%`);
 
     const token = uuidv4();
     const sub = db.prepare(`
-      INSERT INTO submissions (employee_id, raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date, status, decision_token)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+      INSERT INTO submissions (employee_id, raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, status, decision_token)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
     `).run(
       employee?.id ?? null,
       raw_request,
@@ -118,24 +119,18 @@ router.post('/', async (req, res) => {
       parsed.parsed_department !== 'Unknown' ? parsed.parsed_department : (employee?.department ?? 'Unknown'),
       parsed.parsed_purpose,
       parsed.parsed_amount,
-      tentative_date || null,
       token
     );
 
     const submission = db.prepare('SELECT * FROM submissions WHERE id = ?').get(sub.lastInsertRowid);
 
-    // Send email immediately with a placeholder so Approve/Deny links work right away,
-    // then try to generate the AI recommendation in the background.
-    const placeholder = 'AI recommendation is being generated — open the ExI web app for the full analysis.';
-    sendApprovalEmail(submission, placeholder, token)
-      .then(() => console.log(`[email] Approval email sent to ${process.env.FINANCE_EMAIL} for submission ${submission.id}`))
-      .catch(err => console.error('[email] Send failed:', err?.message, err?.response?.data ?? err));
-
+    // Generate recommendation and send email asynchronously (non-blocking)
     generateRecommendation(submission)
       .then(({ recommendation }) => {
         persistRecommendation(db, submission.id, recommendation);
+        sendApprovalEmail(submission, recommendation, token);
       })
-      .catch(err => console.error('Recommendation generation error:', err));
+      .catch(err => console.error('Email send error:', err));
 
     res.json({ success: true, id: sub.lastInsertRowid, parsed });
   } catch (err) {
