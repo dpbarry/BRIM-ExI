@@ -25,6 +25,7 @@
         "data-gallery": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5" fill="none"/><path d="M5 5.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 9.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 13.5V18c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4.5" fill="none"/></svg>`,
         "policy-rules": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3.6v5.2c0 4.4-3 7.8-7 9.2-4-1.4-7-4.8-7-9.2V6.6z"/><path d="M9.3 12.1l1.8 1.8 3.6-3.6"/></svg>`,
         "policy-violations": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 5.25 3.8 18.75Q3.2 19.8 4.4 19.8H19.6Q20.8 19.8 20.2 18.75L12.6 5.25Q12 4.2 11.4 5.25Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17.2" r="0.95" fill="currentColor" stroke="none"/></svg>`,
+        "saved-visuals": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
         "pre-approval": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="5.75" r="1.6"/><path d="M7 7.5v4.2a3.3 3.3 0 0 0 3.3 3.3h7.2"/><path d="M14.8 12.8 17.5 15.5l-2.7 2.7"/></svg>`,
         "expense-reports": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3.5" width="12" height="17" rx="2" ry="2"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>`,
     };
@@ -114,6 +115,21 @@
                                 <div class="cg-dialog__stage"><canvas id="chartGalleryDialogCanvas" aria-hidden="true"></canvas></div>
                             </div>
                         </dialog>
+                    </div>
+                </section>`,
+        },
+        {
+            id: "saved-visuals",
+            title: "Saved Visuals",
+            navLabel: "Saved Visuals",
+            render: (_state) => `
+                <section class="page saved-visuals-page">
+                    <header class="page-header">
+                        <h1 class="page-header__title">Saved Visuals</h1>
+                        <p class="page-header__sub">Charts saved from your data conversations.</p>
+                    </header>
+                    <div class="gallery-grid" id="galleryGrid">
+                        <div class="gallery-loading">Loading charts…</div>
                     </div>
                 </section>`,
         },
@@ -1118,6 +1134,37 @@
             }
             if (routeId === "data-gallery") {
                 this.attachChartGalleryHandlers(view);
+                return;
+            }
+            if (routeId === "saved-visuals") {
+                const grid = view.querySelector("#galleryGrid");
+                fetch("/api/chat/saved-charts")
+                    .then(r => r.json())
+                    .then(charts => {
+                        if (!charts.length) {
+                            grid.innerHTML = `<p class="gallery-empty">No saved charts yet. Save a chart from Talk to Data.</p>`;
+                            return;
+                        }
+                        grid.innerHTML = "";
+                        charts.forEach(chart => {
+                            const card = document.createElement("div");
+                            card.className = "gallery-card";
+                            card.innerHTML = `
+                                <p class="gallery-card__title">${chart.title}</p>
+                                <p class="gallery-card__query">${chart.original_query}</p>
+                                <div class="gallery-card__chart" id="chart-${chart.id}"></div>
+                                <p class="gallery-card__date">${new Date(chart.created_at).toLocaleDateString()}</p>
+                            `;
+                            grid.appendChild(card);
+                            try {
+                                const config = JSON.parse(chart.chart_config_json);
+                                requestAnimationFrame(() => {
+                                    new ApexCharts(card.querySelector(`#chart-${chart.id}`), config).render();
+                                });
+                            } catch {}
+                        });
+                    })
+                    .catch(() => { grid.innerHTML = `<p class="gallery-empty">Failed to load charts.</p>`; });
                 return;
             }
             if (routeId !== DEFAULT_ROUTE) {
