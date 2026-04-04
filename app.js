@@ -221,9 +221,24 @@
         },
         {
             id: "expense-reports",
-            title: "Expense Report Generation",
-            navLabel: "Expense report generation",
-            render: () => centeredTitle("Expense Report Generation"),
+            title: "Expense Reports",
+            navLabel: "Expense Reports",
+            render: (state) => `
+                <section class="page reports-page">
+                    <header class="page-header">
+                        <h1 class="page-header__title">Expense Reports</h1>
+                        ${state.account === "Admin" ? `
+                        <div class="page-header__actions">
+                            <select id="reportEmployee" class="filter-select">
+                                <option value="">Select employee…</option>
+                            </select>
+                            <input type="date" id="reportStart" class="date-input" />
+                            <input type="date" id="reportEnd" class="date-input" />
+                            <button id="generateBtn" class="btn btn--primary">Generate Reports</button>
+                        </div>` : ""}
+                    </header>
+                    <div id="reportsList" class="reports-list">Loading…</div>
+                </section>`,
         },
     ];
 
@@ -1330,6 +1345,96 @@
                                 btn.textContent = "Submit Request";
                                 this.navigate("pre-approval");
                             }, 1500);
+                        } catch {
+                            btn.disabled = false;
+                            btn.textContent = "Failed — Retry";
+                        }
+                    });
+                }
+                return;
+            }
+            if (routeId === "expense-reports") {
+                const loadReports = () => {
+                    fetch("/api/reports")
+                        .then(r => r.json())
+                        .then(reports => {
+                            const list = view.querySelector("#reportsList");
+                            if (!reports.length) { list.innerHTML = `<p class="empty-state">No expense reports yet.</p>`; return; }
+                            list.innerHTML = reports.map(r => `
+                                <div class="report-card">
+                                    <div class="report-card__header">
+                                        <span class="report-card__title">${r.title}</span>
+                                        <span class="badge badge--${r.status}">${r.status}</span>
+                                    </div>
+                                    <div class="report-card__meta">
+                                        <span>${r.emp_name} · ${r.emp_dept}</span>
+                                        <span>${r.date_range_start} → ${r.date_range_end}</span>
+                                        <span>${r.item_count} transactions · <strong>$${Number(r.total_amount).toFixed(2)}</strong></span>
+                                    </div>
+                                    <p class="report-card__policy">${r.policy_summary || ""}</p>
+                                    ${r.status === "pending" && this.state.account === "Admin" ? `
+                                    <div class="report-card__actions">
+                                        <button class="btn btn--approve" data-report="${r.id}" data-action="approved">✓ Approve</button>
+                                        <button class="btn btn--deny"    data-report="${r.id}" data-action="denied">✗ Deny</button>
+                                    </div>` : ""}
+                                </div>
+                            `).join("");
+                            list.querySelectorAll("[data-report]").forEach(btn => {
+                                btn.addEventListener("click", () => {
+                                    fetch(`/api/reports/${btn.dataset.report}/decide`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ action: btn.dataset.action }),
+                                    }).then(() => loadReports());
+                                });
+                            });
+                        })
+                        .catch(() => { view.querySelector("#reportsList").innerHTML = `<p class="empty-state">Failed to load reports.</p>`; });
+                };
+
+                loadReports();
+
+                if (this.state.account === "Admin") {
+                    fetch("/api/employees")
+                        .then(r => r.json())
+                        .then(employees => {
+                            const sel = view.querySelector("#reportEmployee");
+                            if (!sel) return;
+                            employees.forEach(e => {
+                                const opt = document.createElement("option");
+                                opt.value = e.id;
+                                opt.textContent = `${e.name} (${e.department})`;
+                                sel.appendChild(opt);
+                            });
+                        });
+
+                    const endDate = new Date().toISOString().split("T")[0];
+                    const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+                    const startInput = view.querySelector("#reportStart");
+                    const endInput = view.querySelector("#reportEnd");
+                    if (startInput) startInput.value = startDate;
+                    if (endInput) endInput.value = endDate;
+
+                    view.querySelector("#generateBtn")?.addEventListener("click", async () => {
+                        const empSel = view.querySelector("#reportEmployee");
+                        const empId = empSel?.value;
+                        const start = view.querySelector("#reportStart")?.value;
+                        const end = view.querySelector("#reportEnd")?.value;
+                        if (!empId || !start || !end) { alert("Please select an employee and date range."); return; }
+                        const btn = view.querySelector("#generateBtn");
+                        btn.disabled = true;
+                        btn.textContent = "Generating…";
+                        try {
+                            const res = await fetch("/api/reports/generate", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ employee_id: parseInt(empId), date_start: start, date_end: end }),
+                            });
+                            if (!res.ok) throw new Error(await res.text());
+                            const data = await res.json();
+                            btn.textContent = `Generated ${data.created} report(s)`;
+                            setTimeout(() => { btn.disabled = false; btn.textContent = "Generate Reports"; }, 2000);
+                            loadReports();
                         } catch {
                             btn.disabled = false;
                             btn.textContent = "Failed — Retry";

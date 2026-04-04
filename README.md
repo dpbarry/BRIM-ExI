@@ -32,3 +32,10 @@ node server.js         # seeds DB on first run, then serves at http://localhost:
 - `PRD.md` — Full product requirements
 - `CLAUDE.md` — AI context and project conventions
 - `docs/` — Hackathon brief, judging criteria, expense policy
+
+## Polish / roadmap notes
+
+See **`CLAUDE.md` → *Open UX / polish*** for details. In short:
+
+- **Saved charts:** The app currently exposes two sidebar items (*Saved charts and graphs* vs *Saved Visuals*) for the same saved-chart data; they should be **merged into one**, favoring the **`data-gallery`** (`cg-page`) visuals.
+- **Pre-Approval & Expense Reports:** UI should be **brought in line** with the rounded, polished look of Talk to Your Data and the Policy Compliance Engine.

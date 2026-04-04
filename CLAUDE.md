@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Status — Where We Are
 
-### ✅ Completed (Tasks 1–10)
+### ✅ Completed (Tasks 1–12)
 
 - **Task 1:** `package.json`, `server.js`, `.env.example`, `.gitignore`, stub route files — Express boots cleanly
 - **Task 2:** `db.js` — all 11 SQLite tables via better-sqlite3 v12 (upgraded from v9 for Node.js v24 compatibility)
@@ -18,21 +18,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Task 8:** `ai/compliance.js` + `routes/compliance.js` — compliance scan agentic loop (MAX_ITERATIONS=20), `GET /violations`, `GET /leaderboard`, `POST /scan`. SDK timeout correctly passed as second argument to `client.messages.create`.
 - **Task 9:** Policy Compliance frontend — violations table and leaderboard now fetched from API (no hardcoded data). "Run Compliance Scan" button added (Admin only), navigates to reload after scan.
 - **Task 10:** `ai/approvals.js` + `routes/approvals.js` + `email.js` — `parseRequest` (single Claude call), `generateRecommendation` (agentic loop with APPROVAL_TOOLS). Full REST: `GET /`, `POST /`, `GET /decide` (email token, registered before `/:id`), `GET /:id`, `POST /:id/decide`. Email via Resend with approve/deny token links.
-
-### ❌ Not Yet Built (Tasks 11–12)
-
-| Task | What to build | Key files |
-|---|---|---|
-| **11** | Pre-Approval Frontend | Modify `app.js` — Admin submissions list + approval panel, John submit form + history |
-| **12** | Expense Reports | `ai/reports.js`, `routes/reports.js`, modify `app.js` (expense-reports route) |
+- **Task 11:** Pre-Approval frontend in `app.js` — Admin view: submissions list with status filter, clickable rows open AI recommendation panel with approve/deny + notes. John's view: freeform text submit form + "My Requests" history. Both wired to `/api/approvals`.
+- **Task 12:** Expense Reports — `ai/reports.js` agentic loop (`generateReports` with `REPORT_TOOLS`, JSON report groups), `routes/reports.js` — `GET /` (list with optional `?status=`), `POST /generate` (employee + date range → persisted `expense_reports` + `expense_report_items`), `POST /:id/decide`. `app.js` `expense-reports` route: report cards for all users; Admin-only employee picker, date range, and Generate; pending reports show approve/deny for Admin.
 
 ### How to Resume
 The full implementation plan is at:
 `docs/superpowers/plans/2026-04-03-exi-implementation.md`
 
-Start at **Task 11**. Use `superpowers:subagent-driven-development` skill with the plan file.
-
-Each task follows: dispatch implementer subagent → spec review → code quality review → mark complete → next task.
+**Core plan tasks (1–12) are complete.** Further work is polish and product tweaks — see **Open UX / polish** under Frontend Conventions (e.g. merge duplicate saved-chart nav, align Pre-Approval / Expense Reports visuals with Talk to Data and Policy Compliance).
 
 ---
 
@@ -41,7 +34,8 @@ Each task follows: dispatch implementer subagent → spec review → code qualit
 ```bash
 npm install
 cp .env.example .env    # fill in keys (see Environment Variables below)
-node server.js          # seeds DB on first run, serves at http://localhost:3000
+npm start               # seeds DB on first run, serves at http://localhost:3000
+npm run dev             # same, with file watching (node --watch)
 ```
 
 The seed script (`seed.js`) runs automatically on first start — it reads `data/brimtransactions.xlsx`, creates synthetic employees, imports all transactions, seeds violations, submissions, and budgets. It only runs once (guarded by a `seeded` table in SQLite).
@@ -61,7 +55,7 @@ server.js          Express entry point
 db.js              SQLite schema + better-sqlite3 connection singleton
 seed.js            One-time data seeder (xlsx → SQLite)
 routes/            API route handlers (chat, compliance, approvals, reports)
-ai/                Claude agentic loops + tool definitions (tools.js, chat.js, approvals.js, compliance.js)
+ai/                Claude agentic loops + tool definitions (tools.js, chat.js, approvals.js, compliance.js, reports.js)
 app.js             All frontend logic (SPA router, state, UI rendering)
 index.html         SPA shell — sidebar + <main class="content-shell">
 style.css          Design system (CSS custom properties, light/dark theme)
@@ -96,6 +90,14 @@ Account gating: `this.state.account === 'Admin'` controls visibility of finance 
 - Accent: `#00b8e6` light / `#3dd3f5` dark
 - No CSS frameworks, no build step
 - ApexCharts loaded from CDN in `index.html`
+
+### Open UX / polish (keep in mind)
+
+These are intentional follow-ups for navigation consistency and visual cohesion (especially for hackathon judging on UI/UX):
+
+1. **Two sidebar entries for the same concept — merge into one.** Both **`data-gallery`** (nav label *Saved charts and graphs*, `cg-page` layout + modal dialog) and **`saved-visuals`** (nav label *Saved Visuals*, `saved-visuals-page` + `gallery-grid`) load charts from the same `saved_charts` data. **Pick a single route and nav item.** When combining, **keep the stronger presentation from `data-gallery`** (card grid, dialog, `cg-*` styling) rather than the flatter `saved-visuals` page; remove duplicate `initRoute` branches and dead CSS/markup as part of the merge.
+
+2. **Match “hero” pages visually.** **Pre-Approval** (`pre-approval` / `approvals-page`) and **Automated Expense Report** (`expense-reports`, still mostly placeholder) should be restyled to align with the **rounded panels, spacing, and atmosphere** used on **Talk to your data** (`talk-page`) and **Policy Compliance Engine** (`pc-page`). Goal: one coherent product chrome, not a mix of plain forms and premium-looking flows.
 
 ---
 
@@ -163,6 +165,8 @@ GET  /api/approvals/decide            Approve/deny from email token (?token=&act
 GET  /api/reports                     All expense reports
 POST /api/reports/generate            AI groups transactions into reports
 POST /api/reports/:id/decide          Approve/deny a report
+
+GET  /api/employees                   List all employees (id, name, department)
 ```
 
 ---
