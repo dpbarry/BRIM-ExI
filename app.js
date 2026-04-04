@@ -7,6 +7,7 @@
         theme: "exi.theme",
         sidebarExpanded: "exi.sidebarExpanded",
         policyRules: "exi.policyRules",
+        sessionId: "exi.session_id",
     };
 
     const DEFAULT_ROUTE = "talk-to-data";
@@ -201,6 +202,15 @@
             }
         },
     };
+
+    function getSessionId() {
+        let id = store.get(STORAGE.sessionId);
+        if (!id) {
+            id = crypto.randomUUID();
+            store.set(STORAGE.sessionId, id);
+        }
+        return id;
+    }
 
     function parseHashRoute() {
         const hash = window.location.hash;
@@ -838,6 +848,21 @@
             return msg;
         }
 
+        appendChart(thread, config) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "msg msg--ai";
+            const chartEl = document.createElement("div");
+            chartEl.className = "msg__chart";
+            wrapper.appendChild(chartEl);
+            thread.appendChild(wrapper);
+            wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+            requestAnimationFrame(() => {
+                const chart = new ApexCharts(chartEl, config);
+                chart.render();
+            });
+            return wrapper;
+        }
+
         hydrateTalkThread(view) {
             const thread = view.querySelector("#talkThread");
             if (!thread) return;
@@ -1029,16 +1054,30 @@
 
             const loadingEl = this.appendLoading(thread);
 
+            let finalText = null;
+            let chartConfig = null;
             try {
-                await this._runStream(loadingEl, this._talkAbortController.signal);
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: trimmed, session_id: getSessionId() }),
+                    signal: this._talkAbortController.signal,
+                });
+                const data = await res.json();
+                loadingEl.remove();
+                if (data.error) {
+                    finalText = `Error: ${data.error}`;
+                } else {
+                    finalText = data.text || null;
+                    chartConfig = data.chartConfig || null;
+                }
             } catch (err) {
-                if (err.name !== "AbortError") throw err;
+                loadingEl.remove();
+                if (err.name !== "AbortError") {
+                    finalText = "Connection error — is the server running?";
+                }
             }
 
-            loadingEl.remove();
-
-            const finalText = this.state.talkStreamText || null;
-            const streamBubble = this._talkStreamBubble;
             this.state.talkStreaming = false;
             this.state.talkStreamText = "";
             this._talkAbortController = null;
@@ -1051,16 +1090,13 @@
             if (finalText) {
                 this.state.talkMessages.push({ role: "ai", text: finalText });
                 this._saveTalkMessages();
-                if (streamBubble?.isConnected) {
-                    if (streamBubble.textContent !== finalText) {
-                        streamBubble.textContent = finalText;
-                    }
-                    streamBubble.classList.remove("msg__bubble--streaming");
-                } else if (currentThread) {
+                if (currentThread) {
                     this.appendMessage(currentThread, "ai", finalText);
                 }
-            } else if (streamBubble?.isConnected) {
-                streamBubble.closest(".msg")?.remove();
+            }
+
+            if (chartConfig && currentThread) {
+                this.appendChart(currentThread, chartConfig);
             }
 
             if (currentThread) {
@@ -1126,6 +1162,35 @@
                     this._talkAbortController.abort();
                 }
             });
+            // Load existing conversation history
+            const self = this;
+            const sessionId = getSessionId();
+            const thread = view.querySelector("#talkThread");
+            fetch(`/api/chat/history/${sessionId}`)
+                .then(r => r.json())
+                .then(history => {
+                    if (!history.length) return;
+                    if (!self.state.talkHasMessage) {
+                        self.state.talkHasMessage = true;
+                        view.querySelector(".talk-page")?.classList.add("has-message");
+                        if (thread) thread.style.overflowY = "auto";
+                    }
+                    for (const msg of history) {
+                        if (msg.role === "user") {
+                            self.appendMessage(thread, "user", msg.content);
+                        } else {
+                            const chartMatch = msg.content.match(/```apexcharts\s*([\s\S]*?)```/);
+                            const cleanText = msg.content.replace(/```apexcharts[\s\S]*?```/g, "").trim();
+                            self.appendMessage(thread, "ai", cleanText);
+                            if (chartMatch) {
+                                try {
+                                    self.appendChart(thread, JSON.parse(chartMatch[1].trim()));
+                                } catch {}
+                            }
+                        }
+                    }
+                })
+                .catch(() => {});
             form.addEventListener("submit", async (e) => {
                 e.preventDefault();
                 if (this.state.talkStreaming) return;
