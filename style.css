@@ -2740,7 +2740,13 @@ html[data-theme="dark"] .btn--deny:hover {
 }
 
 .approval-panel__purpose {
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.4rem;
+}
+
+.approval-panel__date {
+    margin: 0 0 0.8rem;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
 }
 
 .approval-panel__raw {
@@ -3503,4 +3509,56 @@ html[data-theme="dark"] .approval-panel__empty--error {
 
 @keyframes loaderSpin {
     to { transform: rotate(360deg); }
+}
+
+/* ── Review Form (pre-approval 2-step) ─────────────────── */
+.review-form {
+    padding: 0.86rem 0.95rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.review-form__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.62rem 0.85rem;
+}
+.review-form__field { display: flex; flex-direction: column; gap: 0.28rem; }
+.review-form__field--full { grid-column: 1 / -1; }
+.review-form__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+.review-form__input {
+    padding: 0.48rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.82rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.review-form__input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+.review-form__textarea-sm { resize: vertical; min-height: 4.5rem; line-height: 1.48; }
+.review-form__footer { display: flex; align-items: center; justify-content: flex-end; gap: 0.55rem; }
+
+/* Ghost button variant */
+.btn--ghost {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+.btn--ghost:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+@media (max-width: 480px) {
+    .review-form__grid { grid-template-columns: 1fr; }
+    .review-form__field--full { grid-column: 1; }
 }

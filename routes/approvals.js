@@ -86,19 +86,31 @@ router.get('/', (req, res) => {
 
 // POST /api/approvals  — new submission from employee
 router.post('/', async (req, res) => {
-  const { raw_request } = req.body;
+  const { raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date } = req.body;
   if (!raw_request) return res.status(400).json({ error: 'raw_request required' });
 
   try {
     const db = getDb();
-    const parsed = await parseRequest(raw_request);
+
+    let parsed;
+    if (parsed_name) {
+      // Client pre-parsed: skip AI round-trip
+      parsed = {
+        parsed_name:       String(parsed_name).trim()            || 'Unknown',
+        parsed_department: String(parsed_department || '').trim() || 'Unknown',
+        parsed_purpose:    String(parsed_purpose || '').trim()    || raw_request.slice(0, 140),
+        parsed_amount:     Number.isFinite(Number(parsed_amount)) ? Number(parsed_amount) : 0,
+      };
+    } else {
+      parsed = await parseRequest(raw_request);
+    }
 
     const employee = db.prepare(`SELECT * FROM employees WHERE name LIKE ?`).get(`%${(parsed.parsed_name || '').split(' ')[0]}%`);
 
     const token = uuidv4();
     const sub = db.prepare(`
-      INSERT INTO submissions (employee_id, raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, status, decision_token)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+      INSERT INTO submissions (employee_id, raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date, status, decision_token)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `).run(
       employee?.id ?? null,
       raw_request,
@@ -106,6 +118,7 @@ router.post('/', async (req, res) => {
       parsed.parsed_department !== 'Unknown' ? parsed.parsed_department : (employee?.department ?? 'Unknown'),
       parsed.parsed_purpose,
       parsed.parsed_amount,
+      tentative_date || null,
       token
     );
 

@@ -20,6 +20,7 @@ async function sendApprovalEmail(submission, recommendation, token) {
           <tr><td style="padding:6px 0;color:#64748b;width:140px">Employee</td><td><strong>${submission.parsed_name}</strong> (${submission.parsed_department})</td></tr>
           <tr><td style="padding:6px 0;color:#64748b">Purpose</td><td>${submission.parsed_purpose}</td></tr>
           <tr><td style="padding:6px 0;color:#64748b">Amount</td><td><strong>$${submission.parsed_amount}</strong></td></tr>
+          ${submission.tentative_date ? `<tr><td style="padding:6px 0;color:#64748b">Tentative Date</td><td>${submission.tentative_date}</td></tr>` : ''}
         </table>
         <div style="background:#f8fafc;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
           <h3 style="margin:0 0 0.75rem;color:#0f172a">AI Recommendation</h3>
