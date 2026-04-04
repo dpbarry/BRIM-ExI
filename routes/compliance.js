@@ -2,17 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
 const { runComplianceScan } = require('../ai/compliance');
-const { sendViolationNoticeEmail } = require('../email');
 
 // GET /api/compliance/violations
 router.get('/violations', (req, res) => {
   try {
     const db = getDb();
     const violations = db.prepare(`
-      SELECT v.*, e.name as employee_name, e.department, pr.rule_text
+      SELECT v.*, e.name as employee_name, e.department
       FROM violations v
       JOIN employees e ON v.employee_id = e.id
-      LEFT JOIN policy_rules pr ON v.rule_id = pr.id
       ORDER BY
         CASE v.severity WHEN 'high' THEN 1 WHEN 'med' THEN 2 ELSE 3 END,
         v.amount DESC
@@ -55,32 +53,6 @@ router.post('/scan', async (req, res) => {
   } catch (err) {
     console.error('Compliance scan error:', err);
     res.status(500).json({ error: 'Scan failed. Check server logs.' });
-  }
-});
-
-// POST /api/compliance/notify/:id  — send polite notice email to employee
-router.post('/notify/:id', async (req, res) => {
-  const employeeEmail = process.env.EMPLOYEE_EMAIL;
-  if (!employeeEmail) return res.status(500).json({ error: 'EMPLOYEE_EMAIL not configured in .env' });
-
-  try {
-    const db = getDb();
-    const violation = db.prepare(`
-      SELECT v.*, e.name as employee_name, e.department, pr.rule_text
-      FROM violations v
-      JOIN employees e ON v.employee_id = e.id
-      LEFT JOIN policy_rules pr ON v.rule_id = pr.id
-      WHERE v.id = ?
-    `).get(req.params.id);
-
-    if (!violation) return res.status(404).json({ error: 'Violation not found' });
-
-    await sendViolationNoticeEmail(violation, employeeEmail);
-    console.log(`[email] Violation notice sent to ${employeeEmail} for violation ${violation.id}`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[email] Violation notice failed:', err?.message, err?.response?.data ?? err);
-    res.status(500).json({ error: 'Failed to send email.' });
   }
 });
 

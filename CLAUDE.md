@@ -177,7 +177,6 @@ GET  /api/employees                   List all employees (id, name, department)
 ANTHROPIC_API_KEY=
 RESEND_API_KEY=
 FINANCE_EMAIL=       # receives pre-approval notification emails
-EMPLOYEE_EMAIL=
 PORT=3000
 ```
 

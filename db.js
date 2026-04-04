@@ -76,8 +76,7 @@ function initDb() {
       recommendation_updated_at TEXT,
       decision_token TEXT UNIQUE,
       created_at TEXT DEFAULT (datetime('now')),
-      decided_at TEXT,
-      tentative_date TEXT
+      decided_at TEXT
     );
     CREATE TABLE IF NOT EXISTS saved_charts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,7 +127,6 @@ function initDb() {
   // Migrate submissions — add recommendation persistence columns if missing
   try { db.exec(`ALTER TABLE submissions ADD COLUMN recommendation_text TEXT`); } catch {}
   try { db.exec(`ALTER TABLE submissions ADD COLUMN recommendation_updated_at TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE submissions ADD COLUMN tentative_date TEXT`); } catch {}
 
   return db;
 }

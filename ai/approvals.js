@@ -2,7 +2,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { APPROVAL_TOOLS, executeTool } = require('./tools');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 5 });
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const PARSE_SYSTEM = `You are an expense request parser. Extract structured information from a free-text employee expense request.
 Return a JSON object with these exact keys:
@@ -151,6 +151,18 @@ function normalizeParsedRequest(parsed, rawRequest) {
   };
 }
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '$0';
+  const hasCents = Math.abs(amount % 1) > 0.000001;
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 async function parseRequest(rawRequest) {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -168,7 +180,7 @@ async function generateRecommendation(submission) {
 
 Employee: ${submission.parsed_name} (${submission.parsed_department})
 Purpose: ${submission.parsed_purpose}
-Amount: $${submission.parsed_amount}
+Amount: ${formatCurrency(submission.parsed_amount)}
 
 Original request: "${submission.raw_request}"`;
 
