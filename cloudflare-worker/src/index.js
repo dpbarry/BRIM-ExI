@@ -548,61 +548,235 @@ function escapePdfText(value) {
     .trim();
 }
 
-function rowsToPdfLines(rows, title, includeStatus) {
-  const lines = [title];
-  if (!rows.length) {
-    lines.push("No requests in this section.");
-    lines.push("");
-    return lines;
+// ── Styled multi-page PDF builder ──────────────────────────────────────────
+function buildStyledPdfBytes(pendingRows, completedRows, filtersData) {
+  const PAGE_W = 612, PAGE_H = 792;
+  const M = 46;                          // margin
+  const CW = PAGE_W - M * 2;            // content width = 520
+  const HDR_H = 56;                      // header band height
+  const CONTENT_TOP = HDR_H + 14;       // screen Y where body starts = 70
+  const CONTENT_BOTTOM = 760;           // screen Y where body ends (above footer)
+  const dateStamp = new Date().toISOString().slice(0, 10);
+
+  // PDF Y = page_height - screen_Y  (PDF origin is bottom-left)
+  function Y(sY) { return PAGE_H - sY; }
+
+  // Convert hex color to PDF RGB triplet string
+  function rgb(hex) {
+    const h = hex.replace("#", "");
+    return [
+      (parseInt(h.slice(0, 2), 16) / 255).toFixed(3),
+      (parseInt(h.slice(2, 4), 16) / 255).toFixed(3),
+      (parseInt(h.slice(4, 6), 16) / 255).toFixed(3),
+    ].join(" ");
   }
-  rows.slice(0, 300).forEach((row, idx) => {
-    const employee = row.emp_name || row.parsed_name || "Unknown";
-    const department = row.emp_dept || row.parsed_department || "Unknown";
-    const status = String(row.status || "").trim() || "pending";
-    const date = String(row.created_at || "").slice(0, 10) || "Unknown date";
-    const amount = formatCurrency(row.parsed_amount);
-    const purpose = String(row.parsed_purpose || "—");
-    const line2 = includeStatus ? `${status.toUpperCase()} - ${amount}` : `PENDING - ${amount}`;
-    lines.push(`${idx + 1}. ${employee} - ${department} - ${date}`);
-    lines.push(`   ${line2}`);
-    lines.push(`   ${purpose}`);
-    lines.push("");
+
+  // PDF drawing primitives (each returns a content-stream op string)
+  const g = {
+    fillRect(x, sY, w, h, color) {
+      return `q ${rgb(color)} rg ${x} ${Y(sY + h)} ${w} ${h} re f Q`;
+    },
+    line(x1, sY1, x2, sY2, color, lw) {
+      return `q ${rgb(color)} RG ${lw || 0.5} w ${x1} ${Y(sY1)} m ${x2} ${Y(sY2)} l S Q`;
+    },
+    // sY = screen Y of text BASELINE
+    text(str, x, sY, font, size, color) {
+      const safe = escapePdfText(str);
+      if (!safe) return "";
+      return `q BT ${rgb(color)} rg /${font} ${size} Tf 1 0 0 1 ${x} ${Y(sY)} Tm (${safe}) Tj ET Q`;
+    },
+  };
+
+  // Approximate Helvetica text width (em ≈ 0.52 × size for mixed text)
+  function tw(str, size) { return str.length * 0.52 * size; }
+  function textRight(str, rightX, sY, font, size, color) {
+    return g.text(str, Math.max(M, rightX - tw(str, size)), sY, font, size, color);
+  }
+
+  // ── Page accumulator ──────────────────────────────────────────────────────
+  const pages = [];
+  let cur = [];      // ops for current page
+  let cy = CONTENT_TOP; // cursor: screen Y from top
+
+  function emit(op) { if (op) cur.push(op); }
+
+  function headerOps() {
+    return [
+      g.fillRect(0, 0, PAGE_W, HDR_H, "#003d5c"),                                     // navy band
+      g.text("BRIM ExI", M, 22, "F2", 13, "#ffffff"),                                  // brand
+      g.text("Expense Request Report", 300, 19, "F1", 10.5, "#7dd3fc"),               // title
+      g.text(`Generated ${dateStamp}`, 400, 38, "F1", 7.5, "#93c5fd"),                // date
+    ];
+  }
+
+  function footerOps(pageNum, total) {
+    const txt = `BRIM ExI  |  Confidential  |  Page ${pageNum} of ${total}`;
+    return [
+      g.line(M, PAGE_H - 26, PAGE_W - M, PAGE_H - 26, "#e2e8f0", 0.4),
+      g.text(txt, Math.max(M, (PAGE_W - tw(txt, 7.5)) / 2), PAGE_H - 14, "F1", 7.5, "#64748b"),
+    ];
+  }
+
+  function newPage() {
+    pages.push(cur);
+    cur = [];
+    cy = CONTENT_TOP;
+    headerOps().forEach((op) => cur.push(op));
+  }
+
+  function ensureSpace(h) { if (cy + h > CONTENT_BOTTOM) newPage(); }
+
+  // ── Start first page ──────────────────────────────────────────────────────
+  headerOps().forEach((op) => cur.push(op));
+
+  // Summary stats box
+  const allRows = [...pendingRows, ...completedRows];
+  const tAmt = allRows.reduce((s, r) => s + (Number(r.parsed_amount) || 0), 0);
+  const pAmt = pendingRows.reduce((s, r) => s + (Number(r.parsed_amount) || 0), 0);
+  const dAmt = completedRows.reduce((s, r) => s + (Number(r.parsed_amount) || 0), 0);
+  const BOX_H = 66;
+
+  emit(g.fillRect(M, cy, CW, BOX_H, "#e8f6fb"));
+  emit(g.fillRect(M, cy, 3, BOX_H, "#0891b2"));
+  [
+    { label: "TOTAL REQUESTS", count: allRows.length, amt: tAmt },
+    { label: "PENDING",        count: pendingRows.length, amt: pAmt },
+    { label: "COMPLETED",      count: completedRows.length, amt: dAmt },
+  ].forEach((col, i) => {
+    const x = M + i * (CW / 3) + 18;
+    emit(g.text(col.label, x, cy + 13, "F1", 6.5, "#64748b"));
+    emit(g.text(String(col.count), x, cy + 30, "F2", 19, "#0f172a"));
+    emit(g.text(formatCurrency(col.amt), x, cy + 49, "F1", 8.5, "#334155"));
   });
-  if (rows.length > 300) lines.push(`... ${rows.length - 300} more omitted for PDF size.`);
-  lines.push("");
-  return lines;
+  cy += BOX_H + 12;
+
+  // Filter strip
+  const bits = [];
+  if (filtersData.employee_label) bits.push(`Employee: ${filtersData.employee_label}`);
+  if (Array.isArray(filtersData.departments) && filtersData.departments.length)
+    bits.push(`Depts: ${filtersData.departments.join(", ")}`);
+  if (filtersData.date_start) bits.push(`From: ${filtersData.date_start}`);
+  if (filtersData.date_end)   bits.push(`To: ${filtersData.date_end}`);
+  if (bits.length) {
+    emit(g.text(`Filters: ${bits.join("  |  ")}`, M, cy + 9, "F1", 8, "#64748b"));
+    cy += 18;
+  }
+
+  // ── Section renderer ──────────────────────────────────────────────────────
+  function renderSection(rows, title) {
+    cy += 8;
+    ensureSpace(40);
+
+    // Section header bar + title + count badge
+    emit(g.fillRect(M, cy, 3, 22, "#0891b2"));
+    emit(g.text(title, M + 10, cy + 16, "F2", 11.5, "#0f172a"));
+    const cntStr = String(rows.length);
+    const bW = Math.max(26, cntStr.length * 7 + 12);
+    const bX = PAGE_W - M - bW;
+    emit(g.fillRect(bX, cy + 2, bW, 17, rows.length > 0 ? "#0891b2" : "#94a3b8"));
+    emit(g.text(cntStr, bX + (bW - tw(cntStr, 8)) / 2, cy + 13, "F2", 8, "#ffffff"));
+    cy += 28;
+    emit(g.line(M, cy, PAGE_W - M, cy, "#e2e8f0", 0.5));
+    cy += 8;
+
+    if (!rows.length) {
+      emit(g.text("No requests in this section.", M + 8, cy + 10, "F1", 10, "#64748b"));
+      cy += 26;
+      return;
+    }
+
+    rows.forEach((row, idx) => {
+      const ROW_H = 52;
+      ensureSpace(ROW_H);
+
+      const employee = row.emp_name || row.parsed_name || "Unknown";
+      const dept     = row.emp_dept  || row.parsed_department || "-";
+      const status   = String(row.status || "pending").toLowerCase();
+      const date     = String(row.created_at || "").slice(0, 10);
+      const decided  = row.decided_at ? String(row.decided_at).slice(0, 10) : null;
+      const rawPurp  = String(row.parsed_purpose || "-");
+      const purpose  = rawPurp.length > 82 ? rawPurp.slice(0, 79) + "..." : rawPurp;
+      const amount   = formatCurrency(row.parsed_amount);
+
+      // Alt-row background
+      if (idx % 2 === 0) emit(g.fillRect(M, cy, CW, ROW_H - 1, "#f8fafc"));
+
+      // Row index
+      emit(g.text(String(idx + 1).padStart(2, "0"), M + 4, cy + 16, "F1", 8, "#64748b"));
+
+      // Left column: name / dept+date / purpose
+      const nameX = M + 24;
+      emit(g.text(employee, nameX, cy + 15, "F2", 10, "#0f172a"));
+      emit(g.text(`${dept}  |  ${date}`, nameX, cy + 27, "F1", 8, "#64748b"));
+      emit(g.text(purpose, nameX, cy + 39, "F1", 8.5, "#334155"));
+
+      // Right column: amount + status badge
+      emit(textRight(amount, PAGE_W - M - 2, cy + 15, "F2", 12, "#0f172a"));
+
+      let sbg, sfg;
+      if (status === "approved") { sbg = "#dcfce7"; sfg = "#166534"; }
+      else if (status === "denied") { sbg = "#fee2e2"; sfg = "#7f1d1d"; }
+      else { sbg = "#fef9c3"; sfg = "#92400e"; }
+      const BADGE_W = 60;
+      const badgeX = PAGE_W - M - BADGE_W;
+      emit(g.fillRect(badgeX, cy + 27, BADGE_W, 13, sbg));
+      const stxt = status.toUpperCase();
+      emit(g.text(stxt, badgeX + (BADGE_W - tw(stxt, 6.5)) / 2, cy + 36, "F2", 6.5, sfg));
+      if (decided) {
+        emit(g.text(`Decided ${decided}`, badgeX, cy + 44, "F1", 6.5, "#64748b"));
+      }
+
+      cy += ROW_H;
+      emit(g.line(M, cy - 1, PAGE_W - M, cy - 1, "#e2e8f0", 0.3));
+    });
+
+    // Section total
+    const sTotal = rows.reduce((s, r) => s + (Number(r.parsed_amount) || 0), 0);
+    cy += 8;
+    emit(textRight(`Section total:  ${formatCurrency(sTotal)}`, PAGE_W - M, cy + 2, "F2", 9, "#0f172a"));
+    cy += 20;
+  }
+
+  renderSection(pendingRows, "Pending Requests");
+  renderSection(completedRows, "Completed Requests");
+  pages.push(cur); // flush last page
+
+  // Add footers to all pages
+  const totalPgs = pages.length;
+  pages.forEach((pg, i) => footerOps(i + 1, totalPgs).forEach((op) => pg.push(op)));
+
+  return assemblePdfPages(pages);
 }
 
-function buildPdfBytes(lines) {
-  const safeLines = (Array.isArray(lines) ? lines : []).map(escapePdfText).filter((x) => x.length > 0);
-  const textParts = ["BT", "/F1 10 Tf", "14 TL", "46 760 Td"];
-  for (let i = 0; i < safeLines.length; i++) {
-    const line = safeLines[i];
-    textParts.push(`(${line}) Tj`);
-    if (i < safeLines.length - 1) textParts.push("T*");
+function assemblePdfPages(pageContents) {
+  const N = pageContents.length;
+  // Object IDs: 1=Catalog, 2=Pages, 3..N+2=Page objs, N+3..2N+2=Content streams, 2N+3=Helv, 2N+4=HelvBold
+  const fontHId = 3 + N * 2;
+  const fontBId = 3 + N * 2 + 1;
+  const total   = fontBId;
+
+  const obj = {};
+  obj[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
+  obj[2] = `<< /Type /Pages /Kids [${Array.from({ length: N }, (_, i) => `${3 + i} 0 R`).join(" ")}] /Count ${N} >>`;
+  for (let i = 0; i < N; i++) {
+    const pId = 3 + i, cId = 3 + N + i;
+    obj[pId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontHId} 0 R /F2 ${fontBId} 0 R >> >> /Contents ${cId} 0 R >>`;
+    const stream = pageContents[i].join("\n") + "\n";
+    obj[cId] = `<< /Length ${stream.length} >>\nstream\n${stream}endstream`;
   }
-  textParts.push("ET");
-  const stream = `${textParts.join("\n")}\n`;
-  const objects = [
-    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
-    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`,
-  ];
+  obj[fontHId] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`;
+  obj[fontBId] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`;
+
   let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(pdf.length);
-    pdf += obj;
+  const off = {};
+  for (let id = 1; id <= total; id++) {
+    off[id] = pdf.length;
+    pdf += `${id} 0 obj\n${obj[id]}\nendobj\n`;
   }
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-  for (let i = 1; i < offsets.length; i++) {
-    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const xOff = pdf.length;
+  pdf += `xref\n0 ${total + 1}\n0000000000 65535 f \n`;
+  for (let id = 1; id <= total; id++) pdf += `${String(off[id]).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xOff}\n%%EOF`;
   return new TextEncoder().encode(pdf);
 }
 
@@ -1418,22 +1592,13 @@ export default {
         const pendingRows = await listSubmissionRows(env, filters, employeeIds, "pending");
         const completedRows = await listSubmissionRows(env, filters, employeeIds, "completed");
 
-        const filterBits = [];
-        if (employeeLabel) filterBits.push(`Employee: ${employeeLabel}`);
-        if (filters.departments.length) filterBits.push(`Departments: ${filters.departments.join(", ")}`);
-        if (filters.date_start) filterBits.push(`From: ${filters.date_start}`);
-        if (filters.date_end) filterBits.push(`To: ${filters.date_end}`);
-        const filterText = filterBits.length ? filterBits.join(" | ") : "No filters applied";
         const dateStamp = new Date().toISOString().slice(0, 10);
-        const lines = [
-          "Expense Request Report",
-          `Generated: ${dateStamp}`,
-          filterText,
-          "",
-          ...rowsToPdfLines(pendingRows, `Pending Requests (${pendingRows.length})`, false),
-          ...rowsToPdfLines(completedRows, `Completed Requests (${completedRows.length})`, true),
-        ];
-        const pdfBytes = buildPdfBytes(lines);
+        const pdfBytes = buildStyledPdfBytes(pendingRows, completedRows, {
+          employee_label: employeeLabel,
+          departments: filters.departments,
+          date_start: filters.date_start,
+          date_end: filters.date_end,
+        });
         const pdfBase64 = uint8ToBase64(pdfBytes);
         const filename = `expense-request-report-${dateStamp}.pdf`;
         const emailTo = sanitizeEmail(body?.email_to || "");
