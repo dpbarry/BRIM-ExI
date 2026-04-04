@@ -183,6 +183,46 @@ PORT=3000
 
 ---
 
+## Cloudflare Worker / GitHub Pages Deployment
+
+There is a second deployment target in `cloudflare-worker/` — a Wrangler-based Cloudflare Worker that mirrors the Express backend, using **Cloudflare D1** (SQLite-compatible) instead of local SQLite. The static frontend is served from **GitHub Pages** and calls the Worker API.
+
+```
+cloudflare-worker/
+  src/index.js          Worker entry point (mirrors routes/ + ai/)
+  migrations/0001_init.sql  D1 schema
+  wrangler.toml         Worker config (set database_id after D1 create)
+  .dev.vars.example     Local secrets template for wrangler dev
+scripts/
+  export-d1-seed.js     Exports local exi.db → cloudflare-worker/seed/seed-data.sql
+config.js               Sets window.EXI_API_BASE for the frontend (Worker URL)
+```
+
+**Deploy sequence:**
+```bash
+# 1. Create D1 database (once) — copy returned database_id into wrangler.toml
+npx wrangler d1 create exi
+
+# 2. Apply schema to remote D1
+npx wrangler d1 migrations apply exi --remote
+
+# 3. Seed remote D1 from local data
+npm run worker:seed-export
+npx wrangler d1 execute exi --remote --file=cloudflare-worker/seed/seed-data.sql
+
+# 4. Set Worker secrets
+npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put FINANCE_EMAIL
+
+# 5. Deploy
+npm run worker:deploy   # alias for: npm --prefix cloudflare-worker run deploy
+```
+
+After deploying, update `config.js` with the Worker URL so the frontend calls the right API. Worker secrets live in `.dev.vars` (local) — copy from `.dev.vars.example`.
+
+---
+
 ## Hackathon Context
 
 **Competition:** McGill CBC Hackathon — April 4, 2026 | Brim Financial Sub-Challenge  
