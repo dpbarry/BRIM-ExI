@@ -126,14 +126,16 @@
             title: "Expense policy rules",
             navLabel: "Expense policy rules",
             render: () => `
-                <section class="page pc-page">
-                    <div class="pc-wrap">
-                        <div class="pc-panel">
+                <section class="page pc-page ux-page">
+                    <div class="pc-wrap ux-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Policy Engine</p>
+                            <h1 class="ux-hero__title">Define expense policy rules</h1>
+                            <p class="ux-hero__sub">These rules drive compliance checks across transactions, approvals, and reporting.</p>
+                        </header>
+                        <div class="pc-panel ux-panel">
                             <div class="pc-panel__head">
-                                <div>
-                                    <h2 class="pc-panel__title">Expense Policy Rules</h2>
-                                    <p class="pc-panel__sub">Define rules in plain language — the AI applies them when scanning transactions.</p>
-                                </div>
+                                <div><h2 class="pc-panel__title">Rule Set</h2></div>
                             </div>
                             <ol class="rules-list" id="rulesList" aria-label="Policy rules"></ol>
                             <button class="rules-add-row" data-action="add-rule" aria-label="Add new policy rule">
@@ -149,9 +151,14 @@
             title: "Policy violations",
             navLabel: "Policy violations",
             render: (state) => `
-                <section class="page pc-page">
-                    <div class="pc-wrap">
-                        <div class="pc-panel">
+                <section class="page pc-page ux-page">
+                    <div class="pc-wrap ux-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Policy Compliance</p>
+                            <h1 class="ux-hero__title">Monitor policy violations</h1>
+                            <p class="ux-hero__sub">Review flagged expenses and leaderboard trends to spot risk quickly and keep controls tight.</p>
+                        </header>
+                        <div class="pc-panel ux-panel">
                             <div class="pc-panel__head pc-panel__head--row pc-panel__head--violations">
                                 <div class="pc-view-tabs" role="tablist" aria-label="Compliance views">
                                     <button type="button" class="pc-view-tab is-active" data-subtab="violations" role="tab" aria-selected="true">
@@ -195,7 +202,11 @@
                                         <option value="all">All</option>
                                     </select>
                                 </div>
-                                <div id="submissionsList" class="submissions-list"><div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading requests…</p></div></div>
+                                <div class="submissions-list-wrap">
+                                    <div id="submissionsList" class="submissions-list"><div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading requests…</p></div></div>
+                                    <div class="submissions-mask submissions-mask--top" aria-hidden="true" data-visible="false"></div>
+                                    <div class="submissions-mask submissions-mask--bottom" aria-hidden="true" data-visible="false"></div>
+                                </div>
                             </div>
                             <div id="approvalPanel" class="pc-panel ux-panel approval-panel" aria-live="polite">
                                 <div class="approval-panel__empty">Click a request and a recommendation will appear here.</div>
@@ -241,31 +252,53 @@
             id: "expense-reports",
             title: "Expense Reports",
             navLabel: "Expense Reports",
-            render: (state) => `
+            render: () => `
                 <section class="page pc-page ux-page reports-page">
                     <div class="pc-wrap ux-wrap reports-wrap">
                         <header class="ux-hero">
                             <p class="ux-hero__kicker">Expense Reports</p>
-                            <h1 class="ux-hero__title">Grouped, policy-aware report bundles</h1>
-                            <p class="ux-hero__sub">AI clusters raw transactions into review-ready reports with policy context and approval actions.</p>
+                            <h1 class="ux-hero__title">Generate expense report PDFs</h1>
+                            <p class="ux-hero__sub">Describe what you need in plain language — AI groups matching transactions and exports a polished PDF.</p>
                         </header>
-                        <div class="pc-panel ux-panel">
-                            ${state.account === "Admin" ? `
-                            <div class="ux-panel__head ux-panel__head--stack">
-                                <h2 class="ux-panel__title">Generate Report Set</h2>
-                                <div class="reports-toolbar">
-                                    <select id="reportEmployee" class="filter-select ux-select" aria-label="Employee for report">
-                                        <option value="">Select employee…</option>
-                                    </select>
-                                    <input type="text" id="reportStart" class="date-input ux-date" autocomplete="off" placeholder="DD/MM/YYYY" readonly />
-                                    <input type="text" id="reportEnd" class="date-input ux-date" autocomplete="off" placeholder="DD/MM/YYYY" readonly />
-                                    <button id="generateBtn" class="btn btn--primary">Generate Reports</button>
+                        <div class="pc-panel ux-panel reports-designer">
+                            <div class="ux-panel__head ux-panel__head--split">
+                                <h2 class="ux-panel__title">Report Studio</h2>
+                                <div class="reports-designer__prompt-actions">
+                                    <button id="clearReportFiltersBtn" class="reports-designer__icon-btn" type="button" aria-label="Clear all report filters" title="Clear all report filters">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M7 16h9" />
+                                            <path d="M4.8 13.6 11.7 4.9c.4-.5 1.2-.6 1.8-.2l5.8 4.6c.6.4.7 1.2.3 1.8l-5.7 7.2c-.3.4-.8.7-1.3.7H7.7c-1.6 0-2.5-1.9-1.5-3.1Z" />
+                                        </svg>
+                                    </button>
                                 </div>
-                            </div>` : `
-                            <div class="ux-panel__head">
-                                <h2 class="ux-panel__title">Report Queue</h2>
-                            </div>`}
-                            <div id="reportsList" class="reports-list"><div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading reports…</p></div></div>
+                            </div>
+                            <div class="reports-designer__body">
+                                <div class="reports-designer__prompt-shell">
+                                    <textarea id="reportPrompt" class="reports-designer__prompt" rows="1" placeholder="Describe requirements then click button to autofill"></textarea>
+                                    <button id="aiFillReportFiltersBtn" class="reports-designer__icon-btn reports-designer__prompt-ai-btn" type="button" aria-label="Fill fields using AI from prompt" title="Fill fields using AI from prompt">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M12 3.8 13.7 8l4.2 1.7-4.2 1.8-1.7 4.2-1.8-4.2L6 9.7 10.2 8Z" />
+                                            <path d="M17.4 14.4 18.2 16.5l2.1.8-2.1.9-.8 2.1-.9-2.1-2.1-.9 2.1-.8Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="reports-toolbar">
+                                    <select id="reportEmployee" class="filter-select ux-select" aria-label="Employee">
+                                        <option value="">All employees</option>
+                                    </select>
+                                    <input type="text" id="reportStart" class="date-input ux-date" autocomplete="off" placeholder="Start date" readonly />
+                                    <input type="text" id="reportEnd" class="date-input ux-date" autocomplete="off" placeholder="End date" readonly />
+                                </div>
+                                <div id="departmentChecklist" class="reports-departments__list">
+                                    <p class="reports-designer__hint">Loading departments…</p>
+                                </div>
+                                <div class="reports-designer__actions">
+                                    <button id="generatePdfBtn" class="btn btn--primary" type="button">Generate PDF</button>
+                                    <input id="reportEmailTo" class="reports-designer__email" type="email" placeholder="Email (optional)" />
+                                    <button id="generateAndEmailBtn" class="btn btn--ghost" type="button">Send by Email</button>
+                                </div>
+                                <div id="reportResult" class="reports-result" role="status" aria-live="polite" hidden></div>
+                            </div>
                         </div>
                     </div>
                 </section>`,
@@ -343,6 +376,18 @@
         return isIsoDate(iso) ? iso : "";
     }
 
+    function formatCurrency(value) {
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) return "$0";
+        const hasCents = Math.abs(amount % 1) > 0.000001;
+        return amount.toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: hasCents ? 2 : 0,
+            maximumFractionDigits: 2,
+        });
+    }
+
     function getSessionId() {
         let id = store.get(STORAGE.sessionId);
         if (!id) {
@@ -415,6 +460,113 @@
         const query = normalizeText(originalQuery);
         const normalizedConfig = stableStringify(chartConfig && typeof chartConfig === "object" ? chartConfig : {});
         return `${query}::${normalizedConfig}`;
+    }
+
+    // Applies the current light/dark theme to a raw ApexCharts config (deep-cloned).
+    // Also re-injects axis/tooltip formatters that were stripped by JSON serialization.
+    function buildThemedChartConfig(rawConfig, overrides = {}) {
+        const cs = getComputedStyle(document.documentElement);
+        const get = (v, fb) => cs.getPropertyValue(v).trim() || fb;
+        const ink     = get("--color-ink",       get("--color-text",  "#1a1a1b"));
+        const muted   = get("--color-text-muted", "#8b939c");
+        const border  = get("--color-border",     "#d2d8de");
+        const isDark  = document.documentElement.dataset.theme === "dark";
+
+        const c = JSON.parse(JSON.stringify(rawConfig));
+
+        // Pull formatter metadata stored by buildApexConfig in ai/chat.js
+        const meta      = c._meta || {};
+        const vPrefix   = meta.value_prefix  !== undefined ? meta.value_prefix  : "$";
+        const vSuffix   = meta.value_suffix  !== undefined ? meta.value_suffix  : "";
+        const chartType = meta.chart_type || "";
+        delete c._meta;
+
+        // Chart base
+        if (!c.chart) c.chart = {};
+        c.chart.foreColor  = ink;
+        c.chart.background = "transparent";
+        c.chart.dropShadow = { ...(c.chart.dropShadow || {}), enabled: false };
+        c.chart.toolbar = { ...(c.chart.toolbar || {}), show: false };
+        Object.assign(c.chart, overrides.chart || {});
+
+        // Grid
+        c.grid = { ...(c.grid || {}), borderColor: border };
+
+        // Titles
+        if (c.title)    { if (!c.title.style)    c.title.style    = {}; c.title.style.color    = ink;   }
+        if (c.subtitle) { if (!c.subtitle.style) c.subtitle.style = {}; c.subtitle.style.color = muted; }
+
+        // X-axis
+        if (!c.xaxis)              c.xaxis              = {};
+        if (!c.xaxis.labels)       c.xaxis.labels       = {};
+        if (!c.xaxis.labels.style) c.xaxis.labels.style = {};
+        c.xaxis.labels.style.colors = muted;
+        c.xaxis.axisBorder = { ...(c.xaxis.axisBorder || {}), color: border };
+        c.xaxis.axisTicks  = { ...(c.xaxis.axisTicks  || {}), color: border };
+        // Disable Apex hover "spotlight column" crosshair on cartesian charts.
+        c.xaxis.crosshairs = { ...(c.xaxis.crosshairs || {}), show: false };
+
+        // Y-axis
+        if (!c.yaxis)              c.yaxis              = {};
+        if (!c.yaxis.labels)       c.yaxis.labels       = {};
+        if (!c.yaxis.labels.style) c.yaxis.labels.style = {};
+        c.yaxis.labels.style.colors = muted;
+
+        // Legend
+        if (!c.legend) c.legend = {};
+        c.legend.labels = { ...(c.legend.labels || {}), colors: ink };
+
+        // Tooltip — use ApexCharts built-in theme for correct background + text
+        c.tooltip = { ...(c.tooltip || {}), theme: isDark ? "dark" : "light" };
+        c.tooltip.fillSeriesColor = false;
+        c.tooltip.marker = { ...(c.tooltip.marker || {}), show: true };
+
+        // Keep interaction minimal and avoid auto lightening/darkening on hover.
+        c.states = {
+            ...(c.states || {}),
+            hover: {
+                ...((c.states || {}).hover || {}),
+                filter: { ...(((c.states || {}).hover || {}).filter || {}), type: "none" },
+            },
+            active: {
+                ...((c.states || {}).active || {}),
+                filter: { ...(((c.states || {}).active || {}).filter || {}), type: "none" },
+            },
+        };
+
+        if (c.dataLabels?.dropShadow) {
+            c.dataLabels.dropShadow = { ...c.dataLabels.dropShadow, enabled: false };
+        }
+
+        // Formatters — re-injected after JSON round-trip (functions are stripped by stringify)
+        const fmtAxis = (val) => {
+            if (typeof val !== "number" || isNaN(val)) return String(val);
+            const abs = Math.abs(val);
+            let str;
+            if      (abs >= 1_000_000) str = (val / 1_000_000).toFixed(1) + "M";
+            else if (abs >= 1_000)     str = (val / 1_000).toFixed(1) + "k";
+            else                       str = val.toLocaleString("en-CA", { maximumFractionDigits: 1 });
+            return `${vPrefix}${str}${vSuffix}`;
+        };
+        const fmtTooltip = (val) => {
+            if (typeof val !== "number" || isNaN(val)) return String(val);
+            return `${vPrefix}${val.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${vSuffix}`;
+        };
+
+        const isDonut      = chartType === "donut"         || c.chart.type === "donut";
+        const isHorizontal = chartType === "horizontalBar" || (c.chart.type === "bar" && c.plotOptions?.bar?.horizontal);
+
+        if (isDonut) {
+            c.tooltip = { ...c.tooltip, y: { formatter: fmtTooltip } };
+        } else if (isHorizontal) {
+            c.xaxis.labels = { ...(c.xaxis.labels || {}), formatter: fmtAxis };
+            c.tooltip      = { ...c.tooltip, y: { formatter: fmtTooltip } };
+        } else {
+            c.yaxis.labels = { ...(c.yaxis.labels || {}), formatter: fmtAxis };
+            c.tooltip      = { ...c.tooltip, y: { formatter: fmtTooltip } };
+        }
+
+        return c;
     }
 
     function parseHashRoute() {
@@ -557,6 +709,7 @@
                     if (this.state.talkMessages.length > 0) this.state.talkHasMessage = true;
                 }
             } catch { this.state.talkMessages = []; }
+            this._liveCharts = []; // { instance, rawConfig, overrides, el }
             this.onDocPointerDown = this.onDocPointerDown.bind(this);
             this.onKeydown = this.onKeydown.bind(this);
         }
@@ -584,6 +737,22 @@
             if (this.themeToggle) {
                 this.themeToggle.setAttribute("aria-label", next === "dark" ? "Use light mode" : "Use dark mode");
             }
+            this._refreshAllChartThemes();
+        }
+
+        _refreshAllChartThemes() {
+            // Prune detached chart entries, then re-theme all live charts
+            this._liveCharts = this._liveCharts.filter(e => document.body.contains(e.el));
+            for (const { instance, rawConfig, overrides } of this._liveCharts) {
+                try {
+                    const themed = buildThemedChartConfig(rawConfig, overrides || {});
+                    instance.updateOptions(themed, false, false);
+                } catch {}
+            }
+        }
+
+        _trackChart(instance, rawConfig, overrides, el) {
+            this._liveCharts.push({ instance, rawConfig, overrides, el });
         }
 
         toggleTheme() {
@@ -982,21 +1151,10 @@
             thread.appendChild(wrapper);
             requestAnimationFrame(() => {
                 try {
-                    const cs = getComputedStyle(document.documentElement);
-                    const get = (v, fb) => cs.getPropertyValue(v).trim() || fb;
-                    const ink = get("--color-ink", get("--color-text", "#0a0a0b"));
-                    const muted = get("--color-text-muted", "#8b939c");
-                    const border = get("--color-border", "#d2d8de");
-
-                    const themed = JSON.parse(JSON.stringify(config));
-                    if (themed.chart) themed.chart.foreColor = ink;
-                    themed.grid = { ...(themed.grid || {}), borderColor: border };
-                    if (themed.title?.style) themed.title.style.color = ink;
-                    if (themed.subtitle?.style) themed.subtitle.style.color = muted;
-                    if (themed.xaxis?.labels?.style) themed.xaxis.labels.style.colors = muted;
-                    if (themed.yaxis?.labels?.style) themed.yaxis.labels.style.colors = [muted];
-
-                    new ApexCharts(chartEl, themed).render();
+                    const themed = buildThemedChartConfig(config);
+                    const instance = new ApexCharts(chartEl, themed);
+                    instance.render();
+                    this._trackChart(instance, config, {}, chartEl);
                     requestAnimationFrame(() => {
                         wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
                     });
@@ -1155,7 +1313,7 @@
             this._updateTalkThreadEdgeMasks(thread);
         }
 
-        async sendTalkPrompt(view, text) {
+        async sendTalkPrompt(view, text, { isRetry = false } = {}) {
             const trimmed = text.trim();
             if (!trimmed || this.state.talkStreaming) return;
 
@@ -1163,40 +1321,42 @@
             const thread = view.querySelector("#talkThread");
             if (!input || !thread) return;
 
-            const isFirstMessage = !this.state.talkHasMessage;
-            if (isFirstMessage) {
-                this.state.talkHasMessage = true;
-                view.querySelector(".talk-page")?.classList.add("has-message");
-                thread.style.overflowY = "auto";
-                this._syncTalkComposerInput(view);
-                const threadWrap = thread.closest(".talk-page__thread-wrap");
-                const onExpanded = (e) => {
-                    if (e.propertyName !== "flex-grow") return;
-                    threadWrap?.removeEventListener("transitionend", onExpanded);
-                    this._updateTalkThreadEdgeMasks(thread);
-                    if (this._talkLastUserMsgEl?.isConnected) {
-                        this._pinUserMessageForReply(thread, this._talkLastUserMsgEl);
-                    }
-                };
-                threadWrap?.addEventListener("transitionend", onExpanded);
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => this._updateTalkThreadEdgeMasks(thread));
-                });
-            }
+            if (!isRetry) {
+                const isFirstMessage = !this.state.talkHasMessage;
+                if (isFirstMessage) {
+                    this.state.talkHasMessage = true;
+                    view.querySelector(".talk-page")?.classList.add("has-message");
+                    thread.style.overflowY = "auto";
+                    this._syncTalkComposerInput(view);
+                    const threadWrap = thread.closest(".talk-page__thread-wrap");
+                    const onExpanded = (e) => {
+                        if (e.propertyName !== "flex-grow") return;
+                        threadWrap?.removeEventListener("transitionend", onExpanded);
+                        this._updateTalkThreadEdgeMasks(thread);
+                        if (this._talkLastUserMsgEl?.isConnected) {
+                            this._pinUserMessageForReply(thread, this._talkLastUserMsgEl);
+                        }
+                    };
+                    threadWrap?.addEventListener("transitionend", onExpanded);
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => this._updateTalkThreadEdgeMasks(thread));
+                    });
+                }
 
-            input.value = "";
-            input.focus();
+                input.value = "";
+                input.focus();
 
-            this.state.talkMessages.push({ role: "user", text: trimmed });
-            this._saveTalkMessages();
-            const userMsgEl = this.appendMessage(thread, "user", trimmed);
-            this._talkLastUserMsgEl = userMsgEl;
-            if (isFirstMessage) {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => this._pinUserMessageForReply(thread, userMsgEl));
-                });
-            } else {
-                this._pinUserMessageForReply(thread, userMsgEl);
+                this.state.talkMessages.push({ role: "user", text: trimmed });
+                this._saveTalkMessages();
+                const userMsgEl = this.appendMessage(thread, "user", trimmed);
+                this._talkLastUserMsgEl = userMsgEl;
+                if (isFirstMessage) {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => this._pinUserMessageForReply(thread, userMsgEl));
+                    });
+                } else {
+                    this._pinUserMessageForReply(thread, userMsgEl);
+                }
             }
 
             this.state.talkStreaming = true;
@@ -1302,24 +1462,10 @@
                 dialog?.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
 
                 let activeDialogChart = null;
-
-                const applyTheme = (themed) => {
-                    const cs = getComputedStyle(document.documentElement);
-                    const get = (v, fb) => cs.getPropertyValue(v).trim() || fb;
-                    const ink = get("--color-ink", get("--color-text", "#0a0a0b"));
-                    const muted = get("--color-text-muted", "#8b939c");
-                    const border = get("--color-border", "#d2d8de");
-                    if (themed.chart) themed.chart.foreColor = ink;
-                    themed.grid = { ...(themed.grid || {}), borderColor: border };
-                    if (themed.title?.style) themed.title.style.color = ink;
-                    if (themed.subtitle?.style) themed.subtitle.style.color = muted;
-                    if (themed.xaxis?.labels?.style) themed.xaxis.labels.style.colors = muted;
-                    if (themed.yaxis?.labels?.style) themed.yaxis.labels.style.colors = [muted];
-                    return themed;
-                };
+                let activeDialogRawConfig = null;
 
                 const openDialog = (chart) => {
-                    if (activeDialogChart) { try { activeDialogChart.destroy(); } catch {} activeDialogChart = null; }
+                    if (activeDialogChart) { try { activeDialogChart.destroy(); } catch {} activeDialogChart = null; activeDialogRawConfig = null; }
                     dialogChart.innerHTML = "";
                     dialogQuery.textContent = chart.original_query || "";
                     dialogTs.textContent = chart.created_at
@@ -1331,12 +1477,14 @@
                     requestAnimationFrame(() => {
                         try {
                             const config = JSON.parse(chart.chart_config_json);
-                            const themed = applyTheme(JSON.parse(JSON.stringify(config)));
-                            if (themed.chart) { themed.chart.height = 320; themed.chart.toolbar = { show: false }; }
+                            const overrides = { chart: { height: 320, toolbar: { show: false } } };
+                            const themed = buildThemedChartConfig(config, overrides);
                             const chartEl = document.createElement("div");
                             dialogChart.appendChild(chartEl);
                             activeDialogChart = new ApexCharts(chartEl, themed);
                             activeDialogChart.render();
+                            activeDialogRawConfig = config;
+                            this._trackChart(activeDialogChart, config, overrides, chartEl);
                         } catch {}
                     });
                 };
@@ -1381,13 +1529,15 @@
                             requestAnimationFrame(() => {
                                 try {
                                     const config = JSON.parse(chart.chart_config_json);
-                                    const themed = applyTheme(JSON.parse(JSON.stringify(config)));
+                                    const overrides = { chart: { height: 160, toolbar: { show: false }, animations: { enabled: false } } };
+                                    const themed = buildThemedChartConfig(config, overrides);
                                     delete themed.title;
                                     delete themed.subtitle;
-                                    if (themed.chart) { themed.chart.height = 160; themed.chart.toolbar = { show: false }; themed.chart.animations = { enabled: false }; }
                                     if (themed.legend) themed.legend.show = false;
                                     if (themed.dataLabels) themed.dataLabels.enabled = false;
-                                    new ApexCharts(chartEl, themed).render();
+                                    const instance = new ApexCharts(chartEl, themed);
+                                    instance.render();
+                                    this._trackChart(instance, config, overrides, chartEl);
                                 } catch {}
                             });
 
@@ -1450,7 +1600,7 @@
                                             <span class="submission-row__purpose">${escHtml(s.parsed_purpose || "No purpose provided")}</span>
                                         </div>
                                         <div class="submission-row__meta">
-                                            <span class="submission-row__amount">$${Number(s.parsed_amount).toFixed(2)}</span>
+                                            <span class="submission-row__amount">${formatCurrency(s.parsed_amount)}</span>
                                             <span class="badge badge--${s.status}">${s.status}</span>
                                         </div>
                                     </div>
@@ -1464,6 +1614,22 @@
 
                     const approvalPanelEmpty = `<div class="approval-panel__empty">Click a request and a recommendation will appear here.</div>`;
                     this.enhanceSelectControl(view, "#statusFilter");
+
+                    // Bind overflow fade masks on the submissions list
+                    const listEl = view.querySelector("#submissionsList");
+                    if (listEl) {
+                        const maskWrap = listEl.closest(".submissions-list-wrap");
+                        const maskTop = maskWrap?.querySelector(".submissions-mask--top");
+                        const maskBottom = maskWrap?.querySelector(".submissions-mask--bottom");
+                        const syncMasks = () => {
+                            const at = listEl.scrollTop;
+                            const max = listEl.scrollHeight - listEl.clientHeight;
+                            maskTop?.setAttribute("data-visible", String(at > 8));
+                            maskBottom?.setAttribute("data-visible", String(max - at > 8));
+                        };
+                        listEl.addEventListener("scroll", syncMasks, { passive: true });
+                        new ResizeObserver(syncMasks).observe(listEl);
+                    }
 
                     loadSubmissions("pending");
 
@@ -1482,7 +1648,7 @@
                         let submission = submissionsById.get(String(id)) || {};
                         const headerName = submission.parsed_name || "Unknown";
                         const headerPurpose = submission.parsed_purpose || "";
-                        const headerAmount = Number(submission.parsed_amount || 0).toFixed(2);
+                        const headerAmount = formatCurrency(submission.parsed_amount || 0);
                         const submissionStatus = String(submission.status || "pending").toLowerCase();
                         const reqToken = ++activeApprovalReqToken;
                         let recommendationText = String(submission.recommendation_text || submission.note || "").trim();
@@ -1545,7 +1711,7 @@
                                 `;
                             panel.innerHTML = `
                                 <div class="approval-panel__header">
-                                    <h3>${escHtml(headerName)} — $${headerAmount}</h3>
+                                    <h3>${escHtml(headerName)} — ${headerAmount}</h3>
                                     <p class="approval-panel__purpose">${escHtml(headerPurpose)}</p>
                                 </div>
                                 <div class="${recommendationCls}">
@@ -1663,7 +1829,7 @@
                                             <span class="submission-row__date">${new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                                         </div>
                                         <div class="submission-row__meta">
-                                            <span class="submission-row__amount">$${Number(s.parsed_amount || 0).toFixed(2)}</span>
+                                            <span class="submission-row__amount">${formatCurrency(s.parsed_amount || 0)}</span>
                                             <span class="badge badge--${s.status}">${s.status}</span>
                                         </div>
                                     </div>
@@ -1721,115 +1887,234 @@
                 return;
             }
             if (routeId === "expense-reports") {
-                const loadReports = () => {
-                    const listEl = view.querySelector("#reportsList");
-                    if (listEl) listEl.innerHTML = uxLoadingHtml("Loading reports…");
-                    apiFetch("/api/reports")
-                        .then(r => r.json())
-                        .then(reports => {
-                            const list = view.querySelector("#reportsList");
-                            if (!reports.length) { list.innerHTML = `<p class="empty-state">No expense reports yet.</p>`; return; }
-                            list.innerHTML = reports.map(r => `
-                                <div class="report-card">
-                                    <div class="report-card__header">
-                                        <span class="report-card__title">${escHtml(r.title || "Expense Report")}</span>
-                                        <span class="badge badge--${r.status}">${r.status}</span>
-                                    </div>
-                                    <div class="report-card__meta">
-                                        <span>${escHtml(r.emp_name || "Unknown")} · ${escHtml(r.emp_dept || "Unknown")}</span>
-                                        <span>${r.date_range_start} → ${r.date_range_end}</span>
-                                        <span>${r.item_count} transactions · <strong>$${Number(r.total_amount).toFixed(2)}</strong></span>
-                                    </div>
-                                    <p class="report-card__policy">${escHtml(r.policy_summary || "")}</p>
-                                    ${r.status === "pending" && this.state.account === "Admin" ? `
-                                    <div class="report-card__actions">
-                                        <button class="btn btn--decision btn--approve" data-report="${r.id}" data-action="approved">
-                                            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M20 6L9 17l-5-5"></path>
-                                            </svg>
-                                            <span class="btn__label">Approve</span>
-                                        </button>
-                                        <button class="btn btn--decision btn--deny" data-report="${r.id}" data-action="denied">
-                                            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M18 6L6 18M6 6l12 12"></path>
-                                            </svg>
-                                            <span class="btn__label">Deny</span>
-                                        </button>
-                                    </div>` : ""}
-                                </div>
-                            `).join("");
-                            list.querySelectorAll("[data-report]").forEach(btn => {
-                                btn.addEventListener("click", () => {
-                                    apiFetch(`/api/reports/${btn.dataset.report}/decide`, {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ action: btn.dataset.action }),
-                                    }).then(() => loadReports());
-                                });
-                            });
-                        })
-                        .catch(() => { view.querySelector("#reportsList").innerHTML = `<p class="empty-state">Failed to load reports.</p>`; });
+                const resultEl = view.querySelector("#reportResult");
+                const promptEl = view.querySelector("#reportPrompt");
+                const employeeEl = view.querySelector("#reportEmployee");
+                const startInput = view.querySelector("#reportStart");
+                const endInput = view.querySelector("#reportEnd");
+                const departmentChecklist = view.querySelector("#departmentChecklist");
+                const aiFillBtn = view.querySelector("#aiFillReportFiltersBtn");
+                let supportsAiFilterParse = true;
+                let supportsPdfExport = true;
+                const refreshEmployeePicker = this.enhanceSelectControl(view, "#reportEmployee");
+                if (startInput) this.enhanceDateInput(startInput);
+                if (endInput) this.enhanceDateInput(endInput);
+
+                const setStatus = (message, type = "muted") => {
+                    if (!resultEl) return;
+                    const text = String(message || "").trim();
+                    if (!text) {
+                        resultEl.hidden = true;
+                        resultEl.innerHTML = "";
+                        return;
+                    }
+                    resultEl.hidden = false;
+                    resultEl.className = `reports-result reports-result--${type}`;
+                    resultEl.innerHTML = `<p>${escHtml(text)}</p>`;
                 };
 
-                loadReports();
+                const getSelectedDepartments = () => {
+                    return Array.from(view.querySelectorAll('input[name="reportDepartment"]:checked'))
+                        .map((el) => el.value)
+                        .filter(Boolean);
+                };
 
-                if (this.state.account === "Admin") {
-                    const refreshEmployeePicker = this.enhanceSelectControl(view, "#reportEmployee");
-                    apiFetch("/api/employees")
-                        .then(r => r.json())
-                        .then(employees => {
-                            const sel = view.querySelector("#reportEmployee");
-                            if (!sel) return;
-                            employees.forEach(e => {
+                const setSelectedDepartments = (departments) => {
+                    const selected = new Set((departments || []).map((d) => String(d).toLowerCase()));
+                    view.querySelectorAll('input[name="reportDepartment"]').forEach((el) => {
+                        el.checked = selected.has(String(el.value || "").toLowerCase());
+                    });
+                };
+
+                const downloadPdfFromBase64 = (base64, filename) => {
+                    const bin = atob(base64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    const blob = new Blob([bytes], { type: "application/pdf" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = filename || "expense-request-report.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                };
+
+                const setBusy = (busy, primaryText, emailText) => {
+                    const primaryBtn = view.querySelector("#generatePdfBtn");
+                    const emailBtn = view.querySelector("#generateAndEmailBtn");
+                    if (primaryBtn) {
+                        primaryBtn.disabled = busy;
+                        primaryBtn.textContent = primaryText || "Generate PDF";
+                    }
+                    if (emailBtn) {
+                        emailBtn.disabled = busy;
+                        emailBtn.textContent = emailText || "Send by Email";
+                    }
+                };
+
+                const loadReportMeta = async () => {
+                    if (supportsAiFilterParse) {
+                        const primary = await apiFetch("/api/reports/filters/meta");
+                        if (primary.ok) {
+                            const data = await primary.json();
+                            if (Array.isArray(data?.employees) && Array.isArray(data?.departments)) {
+                                return data;
+                            }
+                        }
+                    }
+
+                    supportsAiFilterParse = false;
+                    const fallback = await apiFetch("/api/employees");
+                    if (!fallback.ok) {
+                        throw new Error("Failed to load report filters.");
+                    }
+                    const employees = await fallback.json();
+                    const departments = [...new Set(
+                        (Array.isArray(employees) ? employees : [])
+                            .map((e) => String(e?.department || "").trim())
+                            .filter(Boolean)
+                    )].sort((a, b) => a.localeCompare(b));
+                    return { employees, departments };
+                };
+
+                loadReportMeta()
+                    .then((meta) => {
+                        if (employeeEl && Array.isArray(meta.employees)) {
+                            meta.employees.forEach((e) => {
                                 const opt = document.createElement("option");
                                 opt.value = e.id;
                                 opt.textContent = `${e.name} (${e.department})`;
-                                sel.appendChild(opt);
+                                employeeEl.appendChild(opt);
                             });
                             refreshEmployeePicker?.();
-                        });
-
-                    const endDate = new Date().toISOString().split("T")[0];
-                    const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-                    const startInput = view.querySelector("#reportStart");
-                    const endInput = view.querySelector("#reportEnd");
-                    if (startInput) {
-                        this.enhanceDateInput(startInput);
-                        this.setDateInputValue(startInput, startDate);
-                    }
-                    if (endInput) {
-                        this.enhanceDateInput(endInput);
-                        this.setDateInputValue(endInput, endDate);
-                    }
-
-                    view.querySelector("#generateBtn")?.addEventListener("click", async () => {
-                        const empSel = view.querySelector("#reportEmployee");
-                        const empId = empSel?.value;
-                        const start = this.getDateInputValue(view.querySelector("#reportStart"));
-                        const end = this.getDateInputValue(view.querySelector("#reportEnd"));
-                        if (!empId || !start || !end) { alert("Please select an employee and date range."); return; }
-                        const btn = view.querySelector("#generateBtn");
-                        const reportsListEl = view.querySelector("#reportsList");
-                        if (reportsListEl) reportsListEl.innerHTML = uxLoadingHtml("Generating reports…");
-                        btn.disabled = true;
-                        btn.textContent = "Generating…";
-                        try {
-                            const res = await apiFetch("/api/reports/generate", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ employee_id: parseInt(empId), date_start: start, date_end: end }),
-                            });
-                            if (!res.ok) throw new Error(await res.text());
-                            const data = await res.json();
-                            btn.textContent = `Generated ${data.created} report(s)`;
-                            setTimeout(() => { btn.disabled = false; btn.textContent = "Generate Reports"; }, 2000);
-                            loadReports();
-                        } catch {
-                            btn.disabled = false;
-                            btn.textContent = "Failed — Retry";
                         }
-                    });
-                }
+
+                        if (departmentChecklist && Array.isArray(meta.departments)) {
+                            departmentChecklist.innerHTML = meta.departments.length
+                                ? meta.departments.map((dept) => `
+                                    <label class="reports-departments__item">
+                                        <input type="checkbox" name="reportDepartment" value="${escHtml(dept)}" />
+                                        <span>${escHtml(dept)}</span>
+                                    </label>
+                                `).join("")
+                                : `<p class="reports-designer__hint">No departments available.</p>`;
+                        }
+                        if (aiFillBtn && !supportsAiFilterParse) {
+                            aiFillBtn.disabled = true;
+                            aiFillBtn.title = "AI filter fill is unavailable on this API deployment.";
+                        }
+                        setBusy(false);
+                    })
+                    .catch(() => setStatus("Failed to load report filters.", "error"));
+
+                view.querySelector("#clearReportFiltersBtn")?.addEventListener("click", () => {
+                    if (promptEl) promptEl.value = "";
+                    if (employeeEl) employeeEl.value = "";
+                    refreshEmployeePicker?.();
+                    this.setDateInputValue(startInput, "");
+                    this.setDateInputValue(endInput, "");
+                    setSelectedDepartments([]);
+                    promptEl?.focus();
+                    setStatus("Filters cleared. Ready to generate.", "muted");
+                });
+
+                view.querySelector("#aiFillReportFiltersBtn")?.addEventListener("click", async () => {
+                    if (!supportsAiFilterParse) {
+                        setStatus("AI fill is unavailable on this backend. Set filters manually.", "muted");
+                        return;
+                    }
+                    const prompt = String(promptEl?.value || "").trim();
+                    if (!prompt) {
+                        setStatus("Write a prompt first, then use AI fill.", "muted");
+                        promptEl?.focus();
+                        return;
+                    }
+                    setBusy(true, "Thinking…", "Thinking…");
+                    try {
+                        const res = await apiFetch("/api/reports/filters/parse", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ prompt }),
+                        });
+                        if (res.status === 404) {
+                            supportsAiFilterParse = false;
+                            if (aiFillBtn) {
+                                aiFillBtn.disabled = true;
+                                aiFillBtn.title = "AI filter fill is unavailable on this API deployment.";
+                            }
+                            throw new Error("AI fill endpoint is unavailable on this backend.");
+                        }
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data?.error || "Failed to parse prompt.");
+                        if (data.date_start) this.setDateInputValue(startInput, data.date_start);
+                        if (data.date_end) this.setDateInputValue(endInput, data.date_end);
+                        if (Array.isArray(data.departments)) setSelectedDepartments(data.departments);
+                        if (Array.isArray(data.employee_names) && data.employee_names.length && employeeEl) {
+                            const needle = data.employee_names[0].toLowerCase();
+                            const option = Array.from(employeeEl.options).find((opt) => String(opt.textContent || "").toLowerCase().includes(needle));
+                            if (option) employeeEl.value = option.value;
+                        }
+                        refreshEmployeePicker?.();
+                        setStatus(data.notes || "AI filled available fields from your prompt.", "success");
+                    } catch (err) {
+                        setStatus(err.message || "Could not fill fields from prompt.", "error");
+                    } finally {
+                        setBusy(false, "Generate PDF", "Send by Email");
+                    }
+                });
+
+                const generatePdf = async (withEmail) => {
+                    const emailInput = view.querySelector("#reportEmailTo");
+                    const prompt = String(promptEl?.value || "").trim();
+                    const employeeId = Number(employeeEl?.value || 0) || null;
+                    const dateStart = this.getDateInputValue(startInput);
+                    const dateEnd = this.getDateInputValue(endInput);
+                    const departments = getSelectedDepartments();
+                    const emailTo = String(emailInput?.value || "").trim();
+
+                    if (withEmail && !emailTo) {
+                        setStatus("Enter an email address to send the PDF.", "error");
+                        return;
+                    }
+
+                    setBusy(true, withEmail ? "Generating…" : "Generating…", withEmail ? "Sending…" : "Generating…");
+                    setStatus(withEmail ? "Generating and emailing report…" : "Generating PDF…", "muted");
+                    try {
+                        const res = await apiFetch("/api/reports/pdf", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                prompt,
+                                employee_id: employeeId,
+                                date_start: dateStart,
+                                date_end: dateEnd,
+                                departments,
+                                email_to: withEmail ? emailTo : "",
+                            }),
+                        });
+                        if (res.status === 404) {
+                            supportsPdfExport = false;
+                            setBusy(false);
+                            throw new Error("PDF export endpoint is unavailable on this backend.");
+                        }
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data?.error || "Failed to generate PDF.");
+                        if (!data.pdf_base64) throw new Error("No PDF received from server.");
+                        downloadPdfFromBase64(data.pdf_base64, data.filename);
+                        const counts = data.counts || {};
+                        const sent = data.email_sent ? " Email sent." : "";
+                        setStatus(`PDF ready. ${counts.pending || 0} pending, ${counts.completed || 0} completed.${sent}`, "success");
+                    } catch (err) {
+                        setStatus(err.message || "Failed to generate expense report PDF.", "error");
+                    } finally {
+                        setBusy(false);
+                    }
+                };
+
+                view.querySelector("#generatePdfBtn")?.addEventListener("click", () => generatePdf(false));
+                view.querySelector("#generateAndEmailBtn")?.addEventListener("click", () => generatePdf(true));
                 return;
             }
             if (routeId !== DEFAULT_ROUTE) {
@@ -1857,30 +2142,45 @@
             apiFetch(`/api/chat/history/${sessionId}`)
                 .then(r => r.json())
                 .then(history => {
-                    // Clear thread to avoid double-render with hydrateTalkThread
-                    thread.replaceChildren();
-                    if (!history.length) return;
-                    if (!self.state.talkHasMessage) {
-                        self.state.talkHasMessage = true;
-                        view.querySelector(".talk-page")?.classList.add("has-message");
-                        if (thread) thread.style.overflowY = "auto";
-                    }
-                    let lastUserQuery = "";
-                    for (const msg of history) {
-                        if (msg.role === "user") {
-                            lastUserQuery = msg.content;
-                            self.appendMessage(thread, "user", msg.content);
-                        } else {
-                            self.appendMessage(thread, "ai", msg.content);
-                            let chartCfg = null;
-                            if (msg.chart_config) {
-                                try { chartCfg = JSON.parse(msg.chart_config); } catch {}
+                    if (history.length) {
+                        // Server history is authoritative — replace local render
+                        thread.replaceChildren();
+                        if (!self.state.talkHasMessage) {
+                            self.state.talkHasMessage = true;
+                            view.querySelector(".talk-page")?.classList.add("has-message");
+                            if (thread) thread.style.overflowY = "auto";
+                        }
+                        let lastUserQuery = "";
+                        const synced = [];
+                        for (const msg of history) {
+                            if (msg.role === "user") {
+                                lastUserQuery = msg.content;
+                                synced.push({ role: "user", text: msg.content });
+                                self.appendMessage(thread, "user", msg.content);
                             } else {
-                                // Legacy fallback: extract from old markdown code block format
-                                const match = msg.content.match(/```apexcharts\s*([\s\S]*?)```/);
-                                if (match) try { chartCfg = JSON.parse(match[1].trim()); } catch {}
+                                let chartCfg = null;
+                                if (msg.chart_config) {
+                                    try { chartCfg = JSON.parse(msg.chart_config); } catch {}
+                                } else {
+                                    const match = msg.content.match(/```apexcharts\s*([\s\S]*?)```/);
+                                    if (match) try { chartCfg = JSON.parse(match[1].trim()); } catch {}
+                                }
+                                synced.push({ role: "ai", text: msg.content, chartConfig: chartCfg || null, originalQuery: lastUserQuery });
+                                self.appendMessage(thread, "ai", msg.content);
+                                if (chartCfg) self.appendChart(thread, chartCfg, lastUserQuery);
                             }
-                            if (chartCfg) self.appendChart(thread, chartCfg, lastUserQuery);
+                        }
+                        // Sync local state to match server (resolves drift after mid-flight abort)
+                        self.state.talkMessages = synced;
+                        self._saveTalkMessages();
+                    }
+                    // Auto-retry if the last saved message is a user question with no AI answer
+                    // (happens when user navigated away while a response was in flight)
+                    if (!self.state.talkStreaming) {
+                        const msgs = self.state.talkMessages;
+                        const last = msgs.length ? msgs[msgs.length - 1] : null;
+                        if (last?.role === "user") {
+                            self.sendTalkPrompt(view, last.text, { isRetry: true });
                         }
                     }
                 })
@@ -2388,7 +2688,6 @@
             let violationsData = [];
             let leaderboardData = [];
 
-            const fmtAmt  = (n) => `$${n.toLocaleString("en-US")}`;
             const fmtDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
             const sevOrder = { high: 0, med: 1, low: 2 };
             const sevLabel = { high: "High", med: "Medium", low: "Low" };
@@ -2458,7 +2757,7 @@
                             Object.assign(document.createElement("div"), { className: "vt__sub",  textContent: v.dept })
                         );
 
-                        const tdA = Object.assign(document.createElement("td"), { className: "vt__amount", textContent: fmtAmt(v.amount) });
+                        const tdA = Object.assign(document.createElement("td"), { className: "vt__amount", textContent: formatCurrency(v.amount) });
                         const tdM = Object.assign(document.createElement("td"), { textContent: v.merchant });
 
                         const tdD = document.createElement("td");
@@ -2517,7 +2816,7 @@
 
                     const tdD = Object.assign(document.createElement("td"), { className: "lb__dept",   textContent: emp.dept });
                     const tdC = Object.assign(document.createElement("td"), { className: "lb__count",  textContent: emp.violations });
-                    const tdA = Object.assign(document.createElement("td"), { className: "lb__amount", textContent: fmtAmt(emp.totalAmount) });
+                    const tdA = Object.assign(document.createElement("td"), { className: "lb__amount", textContent: formatCurrency(emp.totalAmount) });
 
                     const tdB = document.createElement("td");
                     const bd = document.createElement("div");
@@ -2630,7 +2929,7 @@
 
                 const grid = document.createElement("div");
                 grid.className = "dlg__meta-grid";
-                [["Employee", viol.employee], ["Department", viol.dept], ["Merchant", viol.merchant], ["Amount", fmtAmt(viol.amount)], ["Date", fmtDate(viol.date)]]
+                [["Employee", viol.employee], ["Department", viol.dept], ["Merchant", viol.merchant], ["Amount", formatCurrency(viol.amount)], ["Date", fmtDate(viol.date)]]
                     .forEach(([lbl, val]) => {
                         const f = document.createElement("div");
                         f.className = "dlg__field";
@@ -2738,7 +3037,7 @@
 
                 const desc = document.createElement("p");
                 desc.className = "dlg__desc";
-                desc.textContent = `You're dismissing ${viol.employee}'s ${fmtAmt(viol.amount)} charge at ${viol.merchant}. Attach a note so future reviewers understand why this was cleared.`;
+                desc.textContent = `You're dismissing ${viol.employee}'s ${formatCurrency(viol.amount)} charge at ${viol.merchant}. Attach a note so future reviewers understand why this was cleared.`;
 
                 const noteField = document.createElement("div");
                 noteField.className = "dlg__field";

@@ -221,6 +221,24 @@ The paragraph must:
 
 Never output: RECOMMENDATION:, NOTE:, Analysis, headings, lists, markdown (** or #), emojis, or multiple paragraphs.`;
 
+const REPORT_FILTER_PARSE_SYSTEM = `You extract optional expense-report filters from natural language.
+Return JSON only (no markdown, no prose) with this exact shape:
+{
+  "employee_names": ["..."],
+  "departments": ["..."],
+  "date_start": "YYYY-MM-DD or empty",
+  "date_end": "YYYY-MM-DD or empty",
+  "request_status": "pending|completed|all",
+  "notes": "short interpretation"
+}
+
+Rules:
+- "completed" means approved + denied.
+- If a value is unknown, return empty string/array.
+- Keep dates ISO only.
+- Prefer exact names from provided options.
+- Never invent employees/departments not in provided options.`;
+
 function normalizeText(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -254,6 +272,18 @@ function escHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "$0";
+  const hasCents = Math.abs(amount % 1) > 0.000001;
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 function getCurrentQuarter() {
@@ -395,6 +425,197 @@ function parseReportArray(rawText) {
     } catch {}
   }
   throw new Error("Model returned invalid report JSON.");
+}
+
+function normalizeReportFilterParse(raw) {
+  const employee_names = Array.isArray(raw?.employee_names)
+    ? raw.employee_names.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  const departments = Array.isArray(raw?.departments)
+    ? raw.departments.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  const date_start = String(raw?.date_start || "").trim();
+  const date_end = String(raw?.date_end || "").trim();
+  const statusRaw = String(raw?.request_status || "all").trim().toLowerCase();
+  const request_status = ["pending", "completed", "all"].includes(statusRaw) ? statusRaw : "all";
+  const notes = String(raw?.notes || "").trim();
+  return { employee_names, departments, date_start, date_end, request_status, notes };
+}
+
+function parseDepartments(value) {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v || "").trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value.split(",").map((v) => v.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function sanitizeEmail(value) {
+  const raw = String(value || "").trim();
+  return raw || "";
+}
+
+function normalizePdfFilters(payload, parsed = {}) {
+  const explicitDepartments = parseDepartments(payload.departments);
+  const parsedDepartments = Array.isArray(parsed.departments) ? parsed.departments : [];
+  const departments = explicitDepartments.length ? explicitDepartments : parsedDepartments;
+  const date_start = isIsoDate(payload.date_start) ? String(payload.date_start) : (isIsoDate(parsed.date_start) ? String(parsed.date_start) : "");
+  const date_end = isIsoDate(payload.date_end) ? String(payload.date_end) : (isIsoDate(parsed.date_end) ? String(parsed.date_end) : "");
+  return {
+    prompt: String(payload.prompt || "").trim(),
+    employee_id: Number(payload.employee_id) || null,
+    employee_names: Array.isArray(parsed.employee_names) ? parsed.employee_names : [],
+    departments,
+    date_start,
+    date_end,
+    notes: String(parsed.notes || "").trim(),
+  };
+}
+
+function buildSubmissionWhere(filters, employeeIds) {
+  const where = [];
+  const params = [];
+  if (employeeIds.length > 0) {
+    where.push(`s.employee_id IN (${employeeIds.map(() => "?").join(",")})`);
+    params.push(...employeeIds);
+  }
+  if (filters.departments.length > 0) {
+    where.push(`COALESCE(NULLIF(s.parsed_department, ''), e.department) IN (${filters.departments.map(() => "?").join(",")})`);
+    params.push(...filters.departments);
+  }
+  if (isIsoDate(filters.date_start)) {
+    where.push("date(s.created_at) >= ?");
+    params.push(filters.date_start);
+  }
+  if (isIsoDate(filters.date_end)) {
+    where.push("date(s.created_at) <= ?");
+    params.push(filters.date_end);
+  }
+  return { whereClause: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
+}
+
+async function resolveEmployeeIdsForPdf(env, explicitEmployeeId, parsedEmployeeNames) {
+  const ids = new Set();
+  const numeric = Number(explicitEmployeeId);
+  if (Number.isInteger(numeric) && numeric > 0) ids.add(numeric);
+  const names = Array.isArray(parsedEmployeeNames) ? parsedEmployeeNames : [];
+  if (!names.length) return [...ids];
+  const all = await d1All(env, "SELECT id, name FROM employees");
+  for (const name of names) {
+    const needle = String(name || "").trim().toLowerCase();
+    if (!needle) continue;
+    const exact = all.find((e) => String(e.name || "").trim().toLowerCase() === needle);
+    const fuzzy = all.find((e) => String(e.name || "").trim().toLowerCase().includes(needle));
+    const match = exact || fuzzy;
+    if (match?.id) ids.add(Number(match.id));
+  }
+  return [...ids];
+}
+
+async function listSubmissionRows(env, filters, employeeIds, mode) {
+  const { whereClause, params } = buildSubmissionWhere(filters, employeeIds);
+  const statusClause = mode === "pending" ? "s.status = 'pending'" : "s.status IN ('approved', 'denied')";
+  const combinedWhere = whereClause ? `${whereClause} AND ${statusClause}` : `WHERE ${statusClause}`;
+  return d1All(
+    env,
+    `SELECT
+      s.id,
+      s.status,
+      s.parsed_name,
+      s.parsed_department,
+      s.parsed_purpose,
+      s.parsed_amount,
+      s.created_at,
+      s.decided_at,
+      e.name AS emp_name,
+      e.department AS emp_dept
+    FROM submissions s
+    LEFT JOIN employees e ON s.employee_id = e.id
+    ${combinedWhere}
+    ORDER BY datetime(s.created_at) DESC`,
+    params
+  );
+}
+
+function escapePdfText(value) {
+  return String(value || "")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .trim();
+}
+
+function rowsToPdfLines(rows, title, includeStatus) {
+  const lines = [title];
+  if (!rows.length) {
+    lines.push("No requests in this section.");
+    lines.push("");
+    return lines;
+  }
+  rows.slice(0, 300).forEach((row, idx) => {
+    const employee = row.emp_name || row.parsed_name || "Unknown";
+    const department = row.emp_dept || row.parsed_department || "Unknown";
+    const status = String(row.status || "").trim() || "pending";
+    const date = String(row.created_at || "").slice(0, 10) || "Unknown date";
+    const amount = formatCurrency(row.parsed_amount);
+    const purpose = String(row.parsed_purpose || "—");
+    const line2 = includeStatus ? `${status.toUpperCase()} - ${amount}` : `PENDING - ${amount}`;
+    lines.push(`${idx + 1}. ${employee} - ${department} - ${date}`);
+    lines.push(`   ${line2}`);
+    lines.push(`   ${purpose}`);
+    lines.push("");
+  });
+  if (rows.length > 300) lines.push(`... ${rows.length - 300} more omitted for PDF size.`);
+  lines.push("");
+  return lines;
+}
+
+function buildPdfBytes(lines) {
+  const safeLines = (Array.isArray(lines) ? lines : []).map(escapePdfText).filter((x) => x.length > 0);
+  const textParts = ["BT", "/F1 10 Tf", "14 TL", "46 760 Td"];
+  for (let i = 0; i < safeLines.length; i++) {
+    const line = safeLines[i];
+    textParts.push(`(${line}) Tj`);
+    if (i < safeLines.length - 1) textParts.push("T*");
+  }
+  textParts.push("ET");
+  const stream = `${textParts.join("\n")}\n`;
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const obj of objects) {
+    offsets.push(pdf.length);
+    pdf += obj;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let i = 1; i < offsets.length; i++) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return new TextEncoder().encode(pdf);
+}
+
+function uint8ToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    let part = "";
+    for (let j = 0; j < chunk.length; j++) part += String.fromCharCode(chunk[j]);
+    binary += part;
+  }
+  return btoa(binary);
 }
 
 function buildApexConfig({ chart_type, title, subtitle, categories = [], series = [], value_prefix = "", value_suffix = "" }) {
@@ -725,7 +946,7 @@ async function generateRecommendationAI(env, submission) {
 
 Employee: ${submission.parsed_name} (${submission.parsed_department})
 Purpose: ${submission.parsed_purpose}
-Amount: $${submission.parsed_amount}
+Amount: ${formatCurrency(submission.parsed_amount)}
 
 Original request: "${submission.raw_request}"`;
   const response = await runToolLoop(env, {
@@ -773,11 +994,38 @@ async function generateReportsAI(env, employeeId, dateStart, dateEnd) {
   return parseReportArray(text);
 }
 
+async function parseReportFiltersAI(env, prompt, options = {}) {
+  const text = String(prompt || "").trim();
+  if (!text || !env.ANTHROPIC_API_KEY) {
+    return { employee_names: [], departments: [], date_start: "", date_end: "", request_status: "all", notes: "" };
+  }
+  const employeeOptions = Array.isArray(options.employeeNames) ? options.employeeNames : [];
+  const departmentOptions = Array.isArray(options.departments) ? options.departments : [];
+  const todayIso = String(options.todayIso || new Date().toISOString().slice(0, 10));
+  const userMsg = [
+    `Today: ${todayIso}`,
+    `Allowed employee names: ${employeeOptions.join(", ") || "(none)"}`,
+    `Allowed departments: ${departmentOptions.join(", ") || "(none)"}`,
+    "",
+    `User prompt: ${text}`,
+  ].join("\n");
+  const response = await callAnthropic(env, {
+    model: "claude-sonnet-4-6",
+    max_tokens: 700,
+    system: REPORT_FILTER_PARSE_SYSTEM,
+    messages: [{ role: "user", content: userMsg }],
+  });
+  const contentText = (response.content || []).find((b) => b.type === "text")?.text || "{}";
+  const parsed = parseFirstJsonObject(contentText) || {};
+  return normalizeReportFilterParse(parsed);
+}
+
 async function sendApprovalEmail(env, submission, recommendation, token) {
   if (!env.RESEND_API_KEY || !env.FINANCE_EMAIL) return;
   const baseUrl = env.BASE_URL || env.WORKER_PUBLIC_URL || "";
   const approveUrl = `${baseUrl}/api/approvals/decide?token=${encodeURIComponent(token)}&action=approve`;
   const denyUrl = `${baseUrl}/api/approvals/decide?token=${encodeURIComponent(token)}&action=deny`;
+  const formattedAmount = formatCurrency(submission.parsed_amount);
   const html = `
   <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:2rem">
     <h2 style="color:#0f172a">Expense Pre-Approval Request</h2>
@@ -786,7 +1034,7 @@ async function sendApprovalEmail(env, submission, recommendation, token) {
         submission.parsed_department
       )})</td></tr>
       <tr><td style="padding:6px 0;color:#64748b">Purpose</td><td>${escHtml(submission.parsed_purpose)}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b">Amount</td><td><strong>$${escHtml(submission.parsed_amount)}</strong></td></tr>
+      <tr><td style="padding:6px 0;color:#64748b">Amount</td><td><strong>${escHtml(formattedAmount)}</strong></td></tr>
     </table>
     <div style="background:#f8fafc;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
       <h3 style="margin:0 0 0.75rem;color:#0f172a">Recommendation</h3>
@@ -806,8 +1054,49 @@ async function sendApprovalEmail(env, submission, recommendation, token) {
     body: JSON.stringify({
       from: env.RESEND_FROM || "ExI Approvals <approvals@resend.dev>",
       to: [env.FINANCE_EMAIL],
-      subject: `[Action Required] Expense Request — ${submission.parsed_name} — $${submission.parsed_amount}`,
+      subject: `[Action Required] Expense Request — ${submission.parsed_name} — ${formattedAmount}`,
       html,
+    }),
+  });
+}
+
+async function sendExpenseReportPdfEmail(env, { to, filename, pdfBase64, counts, filters }) {
+  if (!env.RESEND_API_KEY) return;
+  const filterBits = [];
+  if (filters?.employee) filterBits.push(`Employee: ${filters.employee}`);
+  if (Array.isArray(filters?.departments) && filters.departments.length) {
+    filterBits.push(`Departments: ${filters.departments.join(", ")}`);
+  }
+  if (filters?.date_start) filterBits.push(`From: ${filters.date_start}`);
+  if (filters?.date_end) filterBits.push(`To: ${filters.date_end}`);
+  const filterText = filterBits.length ? filterBits.join(" | ") : "No filters applied";
+  const html = `
+  <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:2rem">
+    <h2 style="color:#0f172a;margin:0 0 0.5rem">Expense Request Report</h2>
+    <p style="color:#334155;margin:0 0 0.9rem">Attached is your generated PDF report.</p>
+    <ul style="margin:0;padding-left:1.2rem;color:#334155">
+      <li><strong>Pending requests:</strong> ${Number(counts?.pending) || 0}</li>
+      <li><strong>Completed requests:</strong> ${Number(counts?.completed) || 0}</li>
+    </ul>
+    <p style="margin-top:1rem;font-size:0.85rem;color:#64748b">${escHtml(filterText)}</p>
+  </div>`;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.RESEND_FROM_REPORTS || env.RESEND_FROM || "ExI Reports <approvals@resend.dev>",
+      to: [to],
+      subject: `Expense request PDF (${Number(counts?.pending) || 0} pending, ${Number(counts?.completed) || 0} completed)`,
+      html,
+      attachments: [
+        {
+          filename: filename || "expense-request-report.pdf",
+          content: String(pdfBase64 || ""),
+        },
+      ],
     }),
   });
 }
@@ -965,7 +1254,7 @@ export default {
             status === "approved" ? "#16a34a" : "#dc2626"
           }">Request ${status.charAt(0).toUpperCase() + status.slice(1)}</h2><p><strong>${escHtml(
             submission.parsed_name
-          )}</strong>'s request for <strong>$${escHtml(submission.parsed_amount)}</strong> (${escHtml(
+          )}</strong>'s request for <strong>${escHtml(formatCurrency(submission.parsed_amount))}</strong> (${escHtml(
             submission.parsed_purpose
           )}) has been <strong>${status}</strong>.</p><p style="color:#6b7280;font-size:0.875rem">You can close this tab.</p></body></html>`
         );
@@ -1071,6 +1360,118 @@ export default {
       if (pathname === "/api/compliance/scan" && request.method === "POST") {
         const summary = await runComplianceScanAI(env);
         return jsonResponse(request, env, 200, { success: true, summary });
+      }
+
+      if (pathname === "/api/reports/filters/meta" && request.method === "GET") {
+        const employees = await d1All(env, "SELECT id, name, department FROM employees ORDER BY name ASC");
+        const deptRows = await d1All(
+          env,
+          "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department ASC"
+        );
+        return jsonResponse(request, env, 200, {
+          employees,
+          departments: deptRows.map((d) => d.department),
+        });
+      }
+
+      if (pathname === "/api/reports/filters/parse" && request.method === "POST") {
+        const body = await parseBody(request);
+        const prompt = String(body?.prompt || "").trim();
+        const employees = await d1All(env, "SELECT name FROM employees ORDER BY name ASC");
+        const deptRows = await d1All(
+          env,
+          "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department ASC"
+        );
+        const parsed = await parseReportFiltersAI(env, prompt, {
+          employeeNames: employees.map((e) => e.name),
+          departments: deptRows.map((d) => d.department),
+          todayIso: new Date().toISOString().slice(0, 10),
+        });
+        return jsonResponse(request, env, 200, parsed);
+      }
+
+      if (pathname === "/api/reports/pdf" && request.method === "POST") {
+        const body = await parseBody(request);
+        const employeesMeta = await d1All(env, "SELECT id, name, department FROM employees ORDER BY name ASC");
+        const departmentsMetaRows = await d1All(
+          env,
+          "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department ASC"
+        );
+        const departmentsMeta = departmentsMetaRows.map((d) => d.department);
+
+        let parsed = { employee_names: [], departments: [], date_start: "", date_end: "", request_status: "all", notes: "" };
+        if (String(body?.prompt || "").trim()) {
+          parsed = await parseReportFiltersAI(env, body.prompt, {
+            employeeNames: employeesMeta.map((e) => e.name),
+            departments: departmentsMeta,
+            todayIso: new Date().toISOString().slice(0, 10),
+          });
+        }
+        const filters = normalizePdfFilters(body || {}, parsed);
+        if (filters.date_start && filters.date_end && filters.date_start > filters.date_end) {
+          return badRequest(request, env, "date_start must be before or equal to date_end.");
+        }
+
+        const employeeIds = await resolveEmployeeIdsForPdf(env, filters.employee_id, filters.employee_names);
+        const selectedEmployee = employeesMeta.find((e) => Number(e.id) === Number(filters.employee_id));
+        const employeeLabel = selectedEmployee?.name || filters.employee_names[0] || "";
+        const pendingRows = await listSubmissionRows(env, filters, employeeIds, "pending");
+        const completedRows = await listSubmissionRows(env, filters, employeeIds, "completed");
+
+        const filterBits = [];
+        if (employeeLabel) filterBits.push(`Employee: ${employeeLabel}`);
+        if (filters.departments.length) filterBits.push(`Departments: ${filters.departments.join(", ")}`);
+        if (filters.date_start) filterBits.push(`From: ${filters.date_start}`);
+        if (filters.date_end) filterBits.push(`To: ${filters.date_end}`);
+        const filterText = filterBits.length ? filterBits.join(" | ") : "No filters applied";
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        const lines = [
+          "Expense Request Report",
+          `Generated: ${dateStamp}`,
+          filterText,
+          "",
+          ...rowsToPdfLines(pendingRows, `Pending Requests (${pendingRows.length})`, false),
+          ...rowsToPdfLines(completedRows, `Completed Requests (${completedRows.length})`, true),
+        ];
+        const pdfBytes = buildPdfBytes(lines);
+        const pdfBase64 = uint8ToBase64(pdfBytes);
+        const filename = `expense-request-report-${dateStamp}.pdf`;
+        const emailTo = sanitizeEmail(body?.email_to || "");
+        let emailed = false;
+        if (emailTo) {
+          await sendExpenseReportPdfEmail(env, {
+            to: emailTo,
+            filename,
+            pdfBase64,
+            counts: { pending: pendingRows.length, completed: completedRows.length },
+            filters: {
+              employee: employeeLabel || "",
+              departments: filters.departments,
+              date_start: filters.date_start,
+              date_end: filters.date_end,
+            },
+          });
+          emailed = true;
+        }
+
+        return jsonResponse(request, env, 200, {
+          filename,
+          pdf_base64: pdfBase64,
+          email_sent: emailed,
+          counts: {
+            pending: pendingRows.length,
+            completed: completedRows.length,
+            total: pendingRows.length + completedRows.length,
+          },
+          applied_filters: {
+            employee_id: filters.employee_id,
+            employee_label: employeeLabel || "",
+            departments: filters.departments,
+            date_start: filters.date_start,
+            date_end: filters.date_end,
+            prompt_notes: filters.notes,
+          },
+        });
       }
 
       if (pathname === "/api/reports" && request.method === "GET") {

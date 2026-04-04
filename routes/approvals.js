@@ -6,6 +6,18 @@ const { getDb } = require('../db');
 const { parseRequest, generateRecommendation } = require('../ai/approvals');
 const { sendApprovalEmail } = require('../email');
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '$0';
+  const hasCents = Math.abs(amount % 1) > 0.000001;
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 function persistRecommendation(db, submissionId, recommendation) {
   try {
     db.prepare(`
@@ -60,12 +72,13 @@ router.get('/decide', (req, res) => {
 
   const status = action === 'approve' ? 'approved' : 'denied';
   db.prepare(`UPDATE submissions SET status = ?, decided_at = datetime('now'), decision_token = NULL WHERE id = ?`).run(status, submission.id);
+  const formattedAmount = formatCurrency(submission.parsed_amount);
 
   res.send(`<html><body style="font-family:sans-serif;padding:2rem;max-width:480px;margin:auto">
     <h2 style="color:${status === 'approved' ? '#16a34a' : '#dc2626'}">
       Request ${status.charAt(0).toUpperCase() + status.slice(1)}
     </h2>
-    <p><strong>${submission.parsed_name}</strong>'s request for <strong>$${submission.parsed_amount}</strong> (${submission.parsed_purpose}) has been <strong>${status}</strong>.</p>
+    <p><strong>${submission.parsed_name}</strong>'s request for <strong>${formattedAmount}</strong> (${submission.parsed_purpose}) has been <strong>${status}</strong>.</p>
     <p style="color:#6b7280;font-size:0.875rem">You can close this tab.</p>
   </body></html>`);
 });

@@ -70,6 +70,9 @@ function buildApexConfig({ chart_type, title, subtitle, categories = [], series 
     grid: { borderColor: 'rgba(130,130,130,0.12)', strokeDashArray: 3 },
     tooltip: { y: { formatter: fmtTooltip } },
     legend: { fontSize: '12px' },
+    // _meta is ignored by ApexCharts but used by the frontend to re-apply
+    // formatters after JSON round-trip (functions are stripped by JSON.stringify)
+    _meta: { value_prefix, value_suffix, chart_type },
   };
 
   if (isDonut) {
