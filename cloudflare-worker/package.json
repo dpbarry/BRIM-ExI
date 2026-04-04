@@ -4,7 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply exi --local",
+    "migrate:remote": "wrangler d1 migrations apply exi --remote",
+    "seed:local": "wrangler d1 execute exi --local --file ./seed/seed-data.sql",
+    "seed:remote": "wrangler d1 execute exi --remote --file ./seed/seed-data.sql",
+    "rebuild:local": "npm run migrate:local && npm run seed:local",
+    "rebuild:remote": "npm run migrate:remote && npm run seed:remote"
   },
   "devDependencies": {
     "wrangler": "^4.11.1"

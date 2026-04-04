@@ -5,9 +5,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "setup": "npm install && npm --prefix cloudflare-worker install",
+    "rebuild:server": "node scripts/rebuild-local-db.js",
     "worker:dev": "npm --prefix cloudflare-worker run dev",
     "worker:deploy": "npm --prefix cloudflare-worker run deploy",
-    "worker:seed-export": "node scripts/export-d1-seed.js"
+    "worker:seed-export": "node scripts/export-d1-seed.js",
+    "rebuild:worker:local": "npm --prefix cloudflare-worker run rebuild:local",
+    "rebuild:worker:remote": "npm --prefix cloudflare-worker run rebuild:remote",
+    "rebuild:all:local": "npm run rebuild:server && npm run worker:seed-export && npm run rebuild:worker:local",
+    "rebuild:all:remote": "npm run rebuild:server && npm run worker:seed-export && npm run rebuild:worker:remote"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
