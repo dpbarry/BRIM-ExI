@@ -6,6 +6,45 @@ const { getDb } = require('../db');
 const { parseRequest, generateRecommendation } = require('../ai/approvals');
 const { sendApprovalEmail } = require('../email');
 
+function persistRecommendation(db, submissionId, recommendation) {
+  try {
+    db.prepare(`
+      UPDATE submissions
+      SET recommendation_text = ?, recommendation_updated_at = datetime('now')
+      WHERE id = ?
+    `).run(recommendation, submissionId);
+    return;
+  } catch {}
+
+  // Backward-compatible fallback for pre-migration DBs.
+  try {
+    db.prepare(`UPDATE submissions SET note = ? WHERE id = ?`).run(recommendation, submissionId);
+  } catch {}
+}
+
+function decideSubmission(db, id, action, note) {
+  try {
+    db.prepare(`
+      UPDATE submissions
+      SET
+        status = ?,
+        note = COALESCE(?, note),
+        recommendation_text = COALESCE(?, recommendation_text),
+        decided_at = datetime('now'),
+        decision_token = NULL
+      WHERE id = ?
+    `).run(action, note || null, note || null, id);
+    return;
+  } catch {}
+
+  // Backward-compatible fallback for pre-migration DBs.
+  db.prepare(`
+    UPDATE submissions
+    SET status = ?, note = COALESCE(?, note), decided_at = datetime('now'), decision_token = NULL
+    WHERE id = ?
+  `).run(action, note || null, id);
+}
+
 // GET /api/approvals/decide  — email token link (must be before /:id to avoid route conflict)
 router.get('/decide', (req, res) => {
   const { token, action } = req.query;
@@ -74,7 +113,10 @@ router.post('/', async (req, res) => {
 
     // Generate recommendation and send email asynchronously (non-blocking)
     generateRecommendation(submission)
-      .then(({ recommendation }) => sendApprovalEmail(submission, recommendation, token))
+      .then(({ recommendation }) => {
+        persistRecommendation(db, submission.id, recommendation);
+        sendApprovalEmail(submission, recommendation, token);
+      })
       .catch(err => console.error('Email send error:', err));
 
     res.json({ success: true, id: sub.lastInsertRowid, parsed });
@@ -84,15 +126,39 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/approvals/:id  — fetch one + generate fresh recommendation
+// GET /api/approvals/:id  — fetch one + cached recommendation, or regenerate on demand
 router.get('/:id', async (req, res) => {
   try {
     const db = getDb();
     const submission = db.prepare('SELECT * FROM submissions WHERE id = ?').get(req.params.id);
     if (!submission) return res.status(404).json({ error: 'Not found' });
 
+    const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const storedRecommendation = submission.recommendation_text || submission.note || null;
+
+    if (!refresh) {
+      if (storedRecommendation) {
+        return res.json({
+          ...submission,
+          recommendation: storedRecommendation,
+          shortNote: storedRecommendation,
+          cached: true,
+        });
+      }
+      if (submission.status !== 'pending') {
+        return res.json({
+          ...submission,
+          recommendation: 'No saved recommendation for this request yet.',
+          shortNote: 'No saved recommendation for this request yet.',
+          cached: true,
+        });
+      }
+    }
+
     const { recommendation, shortNote } = await generateRecommendation(submission);
-    res.json({ ...submission, recommendation, shortNote });
+    persistRecommendation(db, submission.id, recommendation);
+    const updated = db.prepare('SELECT * FROM submissions WHERE id = ?').get(req.params.id) || submission;
+    res.json({ ...updated, recommendation, shortNote, cached: false });
   } catch (err) {
     console.error('Recommendation error:', err);
     res.status(500).json({ error: 'Failed to generate recommendation.' });
@@ -106,7 +172,7 @@ router.post('/:id/decide', (req, res) => {
 
   try {
     const db = getDb();
-    db.prepare(`UPDATE submissions SET status = ?, note = ?, decided_at = datetime('now'), decision_token = NULL WHERE id = ?`).run(action, note || null, req.params.id);
+    decideSubmission(db, req.params.id, action, note);
     res.json({ success: true, status: action });
   } catch (err) {
     res.status(500).json({ error: err.message });

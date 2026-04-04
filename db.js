@@ -72,6 +72,8 @@ function initDb() {
       parsed_amount REAL,
       status TEXT DEFAULT 'pending',
       note TEXT,
+      recommendation_text TEXT,
+      recommendation_updated_at TEXT,
       decision_token TEXT UNIQUE,
       created_at TEXT DEFAULT (datetime('now')),
       decided_at TEXT
@@ -122,6 +124,9 @@ function initDb() {
   try { db.exec(`ALTER TABLE conversation_history ADD COLUMN chart_config TEXT`); } catch {}
   // Migrate saved_charts — add ai_response column if missing
   try { db.exec(`ALTER TABLE saved_charts ADD COLUMN ai_response TEXT`); } catch {}
+  // Migrate submissions — add recommendation persistence columns if missing
+  try { db.exec(`ALTER TABLE submissions ADD COLUMN recommendation_text TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE submissions ADD COLUMN recommendation_updated_at TEXT`); } catch {}
 
   return db;
 }
