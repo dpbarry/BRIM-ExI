@@ -219,6 +219,14 @@
         },
     };
 
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function getSessionId() {
         let id = store.get(STORAGE.sessionId);
         if (!id) {
@@ -1150,8 +1158,8 @@
                             const card = document.createElement("div");
                             card.className = "gallery-card";
                             card.innerHTML = `
-                                <p class="gallery-card__title">${chart.title}</p>
-                                <p class="gallery-card__query">${chart.original_query}</p>
+                                <p class="gallery-card__title">${escHtml(chart.title)}</p>
+                                <p class="gallery-card__query">${escHtml(chart.original_query)}</p>
                                 <div class="gallery-card__chart" id="chart-${chart.id}"></div>
                                 <p class="gallery-card__date">${new Date(chart.created_at).toLocaleDateString()}</p>
                             `;

@@ -26,14 +26,16 @@ async function runComplianceScan() {
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
-    response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: COMPLIANCE_TOOLS,
-      messages,
-      timeout: 120000,
-    });
+    response = await client.messages.create(
+      {
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: COMPLIANCE_TOOLS,
+        messages,
+      },
+      { timeout: 120000 }
+    );
 
     if (response.stop_reason === 'end_turn') break;
 
