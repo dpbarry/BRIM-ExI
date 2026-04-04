@@ -2610,6 +2610,24 @@ html.no-transition *::after {
     margin-bottom: 0.8rem;
 }
 
+.approval-panel__raw {
+    margin: 0.5rem 0 1rem;
+    font-size: 0.8rem;
+    color: var(--color-text-sub);
+    background: var(--color-bg);
+    border-left: 2px solid var(--color-border);
+    padding: 0.4rem 0.75rem;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.approval-panel__raw-label {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-right: 0.25rem;
+}
+
 .approval-panel__recommendation {
     background: transparent;
     border: none;

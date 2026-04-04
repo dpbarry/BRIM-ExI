@@ -1458,10 +1458,12 @@
                             const recommendationHtml = isRecommendationLoading
                                 ? `<p class="approval-panel__loading-copy">Generating recommendation<span class="approval-panel__loading-dots" aria-hidden="true"></span></p>`
                                 : `<p>${escHtml(recommendationText)}</p>`;
+                            const headerRaw = submission.raw_request || "";
                             panel.innerHTML = `
                                 <div class="approval-panel__header">
                                     <h3>${escHtml(headerName)} — $${headerAmount}</h3>
                                     <p class="approval-panel__purpose">${escHtml(headerPurpose)}</p>
+                                    ${headerRaw ? `<p class="approval-panel__raw"><span class="approval-panel__raw-label">Original request:</span> ${escHtml(headerRaw)}</p>` : ""}
                                 </div>
                                 <div class="${recommendationCls}">
                                     ${recommendationHtml}
