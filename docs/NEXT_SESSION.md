@@ -2,8 +2,7 @@
 
 ---
 
-
-## 2. UX Polish — Merge duplicate Saved Charts nav entries
+## 1. UX Polish — Merge duplicate Saved Charts nav entries
 
 Two sidebar entries point to the same data (`data-gallery` and `saved-visuals`). Consolidate into one route using the stronger `data-gallery` card/dialog presentation; remove the flat `saved-visuals` page and its nav entry.
 
@@ -11,7 +10,7 @@ Two sidebar entries point to the same data (`data-gallery` and `saved-visuals`).
 
 ---
 
-## 3. UX Polish — Visual consistency: Pre-Approval & Expense Reports
+## 2. UX Polish — Visual consistency: Pre-Approval & Expense Reports
 
 Pre-Approval and Expense Reports pages should match the rounded-panel atmosphere of Talk to Data and Policy Compliance. Currently they use a plainer layout.
 
