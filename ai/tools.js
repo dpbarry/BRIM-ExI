@@ -124,11 +124,9 @@ function executeTool(name, input) {
 
   if (name === 'run_query') {
     const { sql } = input;
-    if (!sql.trim().toLowerCase().startsWith('select')) {
-      return { error: 'Only SELECT queries are permitted.' };
-    }
     try {
       const stmt = db.prepare(sql);
+      // stmt.reader enforces read-only: better-sqlite3 throws if the statement is not a SELECT
       if (!stmt.reader) {
         return { error: 'Only SELECT queries are permitted.' };
       }

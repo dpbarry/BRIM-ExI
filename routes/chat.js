@@ -9,12 +9,13 @@ router.post('/', async (req, res) => {
   if (!message || !session_id) {
     return res.status(400).json({ error: 'message and session_id required' });
   }
+  if (message.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 characters).' });
   try {
     const result = await runChatLoop(session_id, message);
     res.json(result);
   } catch (err) {
     console.error('Chat error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An error occurred processing your request.' });
   }
 });
 

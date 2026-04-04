@@ -46,6 +46,7 @@ async function runChatLoop(sessionId, userMessage) {
       system: SYSTEM_PROMPT,
       tools: CHAT_TOOLS,
       messages,
+      timeout: 60000,
     });
 
     if (response.stop_reason === 'end_turn') break;
@@ -74,7 +75,11 @@ async function runChatLoop(sessionId, userMessage) {
   }
 
   const textBlock = response.content.find(b => b.type === 'text');
-  const rawText = textBlock ? textBlock.text : '';
+  let rawText = textBlock ? textBlock.text : '';
+
+  if (!rawText && iterations >= MAX_ITERATIONS) {
+    rawText = "I wasn't able to complete this analysis within the allowed steps. Please try a more specific question.";
+  }
 
   // Extract ApexCharts config if present
   let chartConfig = null;
