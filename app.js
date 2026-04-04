@@ -373,9 +373,10 @@
 
     function parseAmount(text) {
         const patterns = [
-            /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-            /\b([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
-            /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
+            /\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
+            /\b([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
+            /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
+            /\bfor\s+\$?\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\b/i,
         ];
         for (const pat of patterns) {
             const m = text.match(pat);
@@ -412,6 +413,16 @@
         }
         const inN = t.match(/\bin\s+(\d+)\s+(days?|weeks?)\b/);
         if (inN) return fmt(addDays(today, parseInt(inN[1]) * (/weeks?/.test(inN[2]) ? 7 : 1)));
+        const iso = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+        if (iso && isIsoDate(iso[1])) return iso[1];
+        const dmy = t.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+        if (dmy) {
+            const dd = Number(dmy[1]);
+            const mm = Number(dmy[2]);
+            const yy = Number(dmy[3]);
+            const parsed = `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+            if (isIsoDate(parsed)) return parsed;
+        }
 
         const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
         const shortM = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -442,14 +453,19 @@
         s = s.replace(/^I['']m\s+\w+[\.,]?\s*/i, '');
         s = s.replace(/^I\s+need\s+(?:pre-?)?approval\s+for\s+/i, '');
         s = s.replace(/^I\s+(?:would\s+like|want)\s+(?:to\s+request\s+)?(?:pre-?)?approval\s+for\s+/i, '');
+        s = s.replace(/^please\s+(?:approve|pre-approve)\s+/i, '');
+        s = s.replace(/\bfor\s+\$?\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\b/gi, '');
         s = s.replace(/\$\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?/gi, '');
         s = s.replace(/\b[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\s*(?:cad|usd|dollars?)\b/gi, '');
         s = s.replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '');
         s = s.replace(/\btomorrow\b|\btoday\b/gi, '');
         s = s.replace(/\bin\s+\d+\s+(?:days?|weeks?)\b/gi, '');
+        s = s.replace(/\b(?:on|by)\s+\d{4}-\d{2}-\d{2}\b/gi, '');
+        s = s.replace(/\b(?:on|by)\s+\d{1,2}\/\d{1,2}\/\d{4}\b/gi, '');
         const allM = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec';
         s = s.replace(new RegExp(`\\b(?:${allM})\\s+\\d{1,2}(?:st|nd|rd|th)?\\b`, 'gi'), '');
         s = s.replace(new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${allM})\\b`, 'gi'), '');
+        s = s.replace(/\b(?:please|thanks|thank you)\b/gi, '');
         return s.replace(/\s{2,}/g, ' ').replace(/^[,.\s]+|[,.\s]+$/g, '').trim();
     }
 
@@ -1965,6 +1981,7 @@
                     const amountInput = view.querySelector("#reviewAmount");
                     const dateInput = view.querySelector("#reviewDate");
                     const purposeInput = view.querySelector("#reviewPurpose");
+                    let supportsAiApprovalParse = true;
                     this.enhanceDateInput(dateInput);
 
                     const syncCharCount = () => {
@@ -1976,7 +1993,7 @@
                     textarea?.addEventListener("input", syncCharCount);
                     syncCharCount();
 
-                    const applyPromptAutofill = () => {
+                    const applyPromptAutofillFallback = () => {
                         const text = String(textarea?.value || "").trim();
                         if (!text) return false;
                         const amount = parseAmount(text);
@@ -1994,15 +2011,53 @@
                         return true;
                     };
 
-                    view.querySelector("#aiFillRequestBtn")?.addEventListener("click", () => {
+                    view.querySelector("#aiFillRequestBtn")?.addEventListener("click", async () => {
                         const feedback = view.querySelector("#submitFeedback");
-                        const didFill = applyPromptAutofill();
                         if (!feedback) return;
-                        if (!didFill) {
+                        const text = String(textarea?.value || "").trim();
+                        if (!text) {
                             feedback.textContent = "Write a request first, then click sparkle to autofill.";
                             feedback.className = "sr-feedback sr-feedback--error";
                             feedback.hidden = false;
                             textarea?.focus();
+                            return;
+                        }
+                        let didFill = false;
+                        if (supportsAiApprovalParse) {
+                            try {
+                                const res = await apiFetch("/api/approvals/parse", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
+                                });
+                                if (res.status === 404) {
+                                    supportsAiApprovalParse = false;
+                                } else {
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data?.error || "AI parse failed");
+                                    if (amountInput && Number.isFinite(Number(data?.parsed_amount)) && Number(data.parsed_amount) > 0) {
+                                        amountInput.value = String(Number(data.parsed_amount));
+                                        didFill = true;
+                                    }
+                                    if (purposeInput && String(data?.parsed_purpose || "").trim()) {
+                                        purposeInput.value = String(data.parsed_purpose).trim();
+                                        didFill = true;
+                                    }
+                                    const parsedDate = parseTentativeDate(text);
+                                    if (dateInput && parsedDate) {
+                                        this.setDateInputValue(dateInput, parsedDate);
+                                        didFill = true;
+                                    }
+                                }
+                            } catch {}
+                        }
+                        if (!didFill) {
+                            didFill = applyPromptAutofillFallback();
+                        }
+                        if (!didFill) {
+                            feedback.textContent = "Could not infer fields from that text. Add amount/date details and try again.";
+                            feedback.className = "sr-feedback sr-feedback--error";
+                            feedback.hidden = false;
                             return;
                         }
                         feedback.hidden = true;

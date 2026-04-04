@@ -97,6 +97,25 @@ router.get('/', (req, res) => {
   }
 });
 
+// POST /api/approvals/parse — lightweight AI parse for John's autofill
+router.post('/parse', async (req, res) => {
+  const raw_request = String(req.body?.raw_request || '').trim();
+  if (!raw_request) return res.status(400).json({ error: 'raw_request required' });
+  try {
+    const parsed = await parseRequest(raw_request);
+    res.json(parsed);
+  } catch {
+    const fallbackAmountMatch = raw_request.match(/\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i);
+    const fallbackAmount = fallbackAmountMatch ? Number(fallbackAmountMatch[1].replace(/,/g, '')) : 0;
+    res.json({
+      parsed_name: 'Unknown',
+      parsed_department: 'Unknown',
+      parsed_purpose: raw_request.slice(0, 140) || 'Expense request',
+      parsed_amount: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
+    });
+  }
+});
+
 // POST /api/approvals  — new submission from employee
 router.post('/', async (req, res) => {
   const { raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date } = req.body;
