@@ -796,6 +796,12 @@
         async renderRoute(route, isInitial) {
             this._disposeChartGallery?.();
             this._disposeChartGallery = null;
+            // Abort any in-flight talk request on route change
+            if (this._talkAbortController) {
+                this._talkAbortController.abort();
+                this._talkAbortController = null;
+            }
+            this.state.talkStreaming = false;
             const next = document.createElement("div");
             next.className = "route-view";
             next.dataset.route = route.id;
@@ -973,36 +979,6 @@
             this._updateTalkThreadEdgeMasks(thread);
         }
 
-        async _runStream(loadingEl, signal) {
-            const FAKE = "This is a placeholder response. Connect the model API here.";
-            const chars = [...FAKE];
-            let thread = null;
-            let firstChar = true;
-            let scrollTick = 0;
-            for (let i = 0; i < chars.length; i++) {
-                if (signal.aborted) throw Object.assign(new Error(), { name: "AbortError" });
-                if (i > 0) {
-                    const step = 7 + Math.random() * 9 + (chars[i - 1] === " " ? 4 : 0);
-                    await new Promise((r) => setTimeout(r, step));
-                }
-                if (signal.aborted) throw Object.assign(new Error(), { name: "AbortError" });
-                const ch = chars[i];
-                if (firstChar) {
-                    firstChar = false;
-                    thread = loadingEl.parentElement;
-                    loadingEl.remove();
-                    const bubble = this._appendStreamingBubble(thread, "");
-                    this._talkStreamBubble = bubble;
-                }
-                this.state.talkStreamText += ch;
-                if (this._talkStreamBubble) {
-                    this._talkStreamBubble.textContent = this.state.talkStreamText;
-                    if ((scrollTick++ & 3) === 0) this._checkStreamScroll();
-                }
-            }
-            this._checkStreamScroll();
-        }
-
         async sendTalkPrompt(view, text) {
             const trimmed = text.trim();
             if (!trimmed || this.state.talkStreaming) return;
@@ -1169,6 +1145,8 @@
             fetch(`/api/chat/history/${sessionId}`)
                 .then(r => r.json())
                 .then(history => {
+                    // Clear thread to avoid double-render with hydrateTalkThread
+                    thread.replaceChildren();
                     if (!history.length) return;
                     if (!self.state.talkHasMessage) {
                         self.state.talkHasMessage = true;
