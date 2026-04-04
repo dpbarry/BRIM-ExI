@@ -6,31 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Status — Where We Are
 
-### ✅ Completed (Tasks 1–3)
-- **Task 1:** `package.json`, `server.js`, `.env.example`, `.gitignore`, stub route files — Express boots cleanly
-- **Task 2:** `db.js` — all 11 SQLite tables created via better-sqlite3 v12 (upgraded from v9 for Node.js v24 compatibility)
-- **Task 3:** `seed.js` — reads `data/brimtransactions.xlsx`, inserts 10 employees, 12 policy rules, 4235 transactions, 30 violations, 12 submissions, 15 budget rows. Idempotent (guarded by `seeded` table).
+### ✅ Completed (Tasks 1–10)
 
-### ❌ Not Yet Built (Tasks 4–12)
-All route files in `routes/` are currently **empty stubs** (just `express.Router()`). The `ai/` directory does not exist yet.
+- **Task 1:** `package.json`, `server.js`, `.env.example`, `.gitignore`, stub route files — Express boots cleanly
+- **Task 2:** `db.js` — all 11 SQLite tables via better-sqlite3 v12 (upgraded from v9 for Node.js v24 compatibility)
+- **Task 3:** `seed.js` — reads `data/brimtransactions.xlsx`, inserts 10 employees, 12 policy rules, 4235 transactions, 30 violations, 12 submissions, 15 budget rows. Idempotent (guarded by `seeded` table).
+- **Task 4:** `ai/tools.js` — all Claude tool definitions (CHAT_TOOLS, APPROVAL_TOOLS, COMPLIANCE_TOOLS, REPORT_TOOLS) + `executeTool` dispatcher. Hardened: `stmt.reader` enforces SELECT-only, 200-row result cap, `flag_violation` deduplicates by (transaction_id, rule_id), `get_department_budget` falls back to latest available period.
+- **Task 5:** `ai/chat.js` + `routes/chat.js` — Talk to Data agentic loop (MAX_ITERATIONS=15), ApexCharts config extraction from ```apexcharts blocks, conversation history persisted to SQLite. Routes: `POST /api/chat`, `GET /api/chat/saved-charts`, `GET /api/chat/history/:sessionId`.
+- **Task 6:** Talk to Data frontend wired — ApexCharts CDN in `index.html`, `getSessionId()` helper, `appendChart()` method on App class, form submit replaced with real `fetch('/api/chat')`, history loading on route init with chart replay. Dead `_runStream` removed. Double-render on page load fixed.
+- **Task 7:** Saved Visuals Gallery — `saved-visuals` route in `app.js`, gallery grid with ApexCharts per card, HTML-escaped titles/queries. Gallery chart container has explicit `height: 220px`.
+- **Task 8:** `ai/compliance.js` + `routes/compliance.js` — compliance scan agentic loop (MAX_ITERATIONS=20), `GET /violations`, `GET /leaderboard`, `POST /scan`. SDK timeout correctly passed as second argument to `client.messages.create`.
+- **Task 9:** Policy Compliance frontend — violations table and leaderboard now fetched from API (no hardcoded data). "Run Compliance Scan" button added (Admin only), navigates to reload after scan.
+- **Task 10:** `ai/approvals.js` + `routes/approvals.js` + `email.js` — `parseRequest` (single Claude call), `generateRecommendation` (agentic loop with APPROVAL_TOOLS). Full REST: `GET /`, `POST /`, `GET /decide` (email token, registered before `/:id`), `GET /:id`, `POST /:id/decide`. Email via Resend with approve/deny token links.
+
+### ❌ Not Yet Built (Tasks 11–12)
 
 | Task | What to build | Key files |
 |---|---|---|
-| **4** | AI Tools Layer | `ai/tools.js` — all Claude tool definitions + executors |
-| **5** | Talk to Data Backend | `ai/chat.js`, `routes/chat.js` |
-| **6** | Talk to Data Frontend | Modify `app.js` (replace stub with fetch), modify `index.html` (add ApexCharts CDN) |
-| **7** | Saved Visuals Gallery | Add `saved-visuals` route to `app.js` |
-| **8** | Policy Compliance Backend | `ai/compliance.js`, `routes/compliance.js` |
-| **9** | Policy Compliance Frontend | Modify `app.js` (replace hardcoded VIOLATIONS_DATA/LEADERBOARD_DATA with API calls) |
-| **10** | Pre-Approval Backend | `ai/approvals.js`, `routes/approvals.js`, `email.js` |
-| **11** | Pre-Approval Frontend | Modify `app.js` (Admin panel + John submit form) |
-| **12** | Expense Reports | `ai/reports.js`, `routes/reports.js`, modify `app.js` |
+| **11** | Pre-Approval Frontend | Modify `app.js` — Admin submissions list + approval panel, John submit form + history |
+| **12** | Expense Reports | `ai/reports.js`, `routes/reports.js`, modify `app.js` (expense-reports route) |
 
 ### How to Resume
 The full implementation plan is at:
 `docs/superpowers/plans/2026-04-03-exi-implementation.md`
 
-Start at **Task 4**. Use `superpowers:subagent-driven-development` skill with the plan file.
+Start at **Task 11**. Use `superpowers:subagent-driven-development` skill with the plan file.
 
 Each task follows: dispatch implementer subagent → spec review → code quality review → mark complete → next task.
 
