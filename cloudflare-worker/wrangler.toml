@@ -6,7 +6,7 @@ compatibility_date = "2026-04-04"
 # Comma-separated allowlist (or "*" for quick testing)
 CORS_ORIGIN = "https://dpbarry.github.io,http://127.0.0.1:5500,http://localhost:5500"
 # Set this to your deployed Worker URL so approval emails can build links
-WORKER_PUBLIC_URL = "https://rpi-backend.com"
+WORKER_PUBLIC_URL = "https://exi-api.deanbarry100.workers.dev"
 
 [[d1_databases]]
 binding = "DB"
