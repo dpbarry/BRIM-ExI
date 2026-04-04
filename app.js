@@ -105,7 +105,7 @@
                             <p class="ux-hero__sub">Every chart saved from Talk to Data, ready to reuse in reviews and decision meetings.</p>
                         </header>
                         <div class="sv-gallery" id="galleryGrid">
-                            <div class="gallery-loading">Loading charts…</div>
+                            <div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading charts…</p></div>
                         </div>
                     </div>
                     <dialog id="chartDialog" class="chart-dialog">
@@ -195,7 +195,7 @@
                                         <option value="all">All</option>
                                     </select>
                                 </div>
-                                <div id="submissionsList" class="submissions-list">Loading…</div>
+                                <div id="submissionsList" class="submissions-list"><div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading requests…</p></div></div>
                             </div>
                             <div id="approvalPanel" class="pc-panel ux-panel approval-panel" aria-live="polite">
                                 <div class="approval-panel__empty">Click a request and a recommendation will appear here.</div>
@@ -231,8 +231,7 @@
                                 <span id="myRequestsBadge" class="sr-count-badge" hidden></span>
                             </div>
                             <div id="mySubmissionsBody" class="submissions-list sr-list">
-                                <div class="sr-skeleton"></div>
-                                <div class="sr-skeleton"></div>
+                                <div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading your requests…</p></div>
                             </div>
                         </div>
                     </div>
@@ -266,7 +265,7 @@
                             <div class="ux-panel__head">
                                 <h2 class="ux-panel__title">Report Queue</h2>
                             </div>`}
-                            <div id="reportsList" class="reports-list">Loading…</div>
+                            <div id="reportsList" class="reports-list"><div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">Loading reports…</p></div></div>
                         </div>
                     </div>
                 </section>`,
@@ -302,6 +301,10 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function uxLoadingHtml(message) {
+        return `<div class="ux-loading-inline" role="status" aria-live="polite"><p class="ux-loading-message">${escHtml(message)}</p></div>`;
     }
 
     const CALENDAR_MONTHS = [
@@ -364,8 +367,37 @@
         return base ? `${base}${raw}` : raw;
     }
 
+    // ── Loader gate: dismiss only once route is rendered AND its fetches settled ──
+    let _loaderDone = false;
+    let _loaderRouteReady = false;
+    let _loaderPending = 0;
+
+    function _checkDismissLoader() {
+        if (_loaderDone || !_loaderRouteReady || _loaderPending > 0) return;
+        _loaderDone = true;
+        const el = document.getElementById("appLoader");
+        if (!el) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            el.remove();
+            return;
+        }
+        el.classList.add("app-loader--out");
+        el.addEventListener("transitionend", () => el.remove(), { once: true });
+    }
+
+    function dismissAppLoader() {
+        _loaderRouteReady = true;
+        _checkDismissLoader();
+    }
+
     function apiFetch(path, options) {
-        return fetch(apiUrl(path), options);
+        if (!_loaderDone) _loaderPending++;
+        return fetch(apiUrl(path), options).finally(() => {
+            if (!_loaderDone) {
+                _loaderPending--;
+                _checkDismissLoader();
+            }
+        });
     }
 
     function normalizeText(value) {
@@ -852,6 +884,7 @@
                 if (!this.reduceMotion.matches) {
                     await this.playRiseIn(next);
                 }
+                dismissAppLoader();
                 return;
             }
 
@@ -1400,7 +1433,7 @@
                     let activeApprovalReqToken = 0;
                     const loadSubmissions = (status) => {
                         const list = view.querySelector("#submissionsList");
-                        list.innerHTML = "Loading…";
+                        list.innerHTML = uxLoadingHtml("Loading requests…");
                         apiFetch(`/api/approvals?status=${status}`)
                             .then(r => r.json())
                             .then(subs => {
@@ -1437,27 +1470,79 @@
                     view.querySelector("#statusFilter")?.addEventListener("change", e => {
                         activeApprovalReqToken++;
                         const panelEl = view.querySelector("#approvalPanel");
-                        if (panelEl) panelEl.innerHTML = approvalPanelEmpty;
+                        if (panelEl) {
+                            panelEl.classList.remove("approval-panel--recommendation-loading");
+                            panelEl.innerHTML = approvalPanelEmpty;
+                        }
                         loadSubmissions(e.target.value);
                     });
 
                     const openApprovalPanel = async (id) => {
                         const panel = view.querySelector("#approvalPanel");
-                        const submission = submissionsById.get(String(id)) || {};
+                        let submission = submissionsById.get(String(id)) || {};
                         const headerName = submission.parsed_name || "Unknown";
                         const headerPurpose = submission.parsed_purpose || "";
                         const headerAmount = Number(submission.parsed_amount || 0).toFixed(2);
+                        const submissionStatus = String(submission.status || "pending").toLowerCase();
                         const reqToken = ++activeApprovalReqToken;
-                        let recommendationText = "Generating recommendation… You can still approve or deny now.";
-                        let isRecommendationLoading = true;
+                        let recommendationText = String(submission.recommendation_text || submission.note || "").trim();
+                        if (!recommendationText && submissionStatus !== "pending") {
+                            recommendationText = "No saved recommendation for this request yet.";
+                        }
+                        let isRecommendationLoading = !recommendationText && submissionStatus === "pending";
+
+                        const decisionButtonsHtml = (() => {
+                            if (submissionStatus === "approved") {
+                                return `
+                                    <button class="btn btn--decision btn--deny" data-action="denied" data-id="${id}">
+                                        <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M18 6L6 18M6 6l12 12"></path>
+                                        </svg>
+                                        <span class="btn__label">Change to denied</span>
+                                    </button>
+                                `;
+                            }
+                            if (submissionStatus === "denied") {
+                                return `
+                                    <button class="btn btn--decision btn--approve" data-action="approved" data-id="${id}">
+                                        <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M20 6L9 17l-5-5"></path>
+                                        </svg>
+                                        <span class="btn__label">Change to approved</span>
+                                    </button>
+                                `;
+                            }
+                            return `
+                                <button class="btn btn--decision btn--approve" data-action="approved" data-id="${id}">
+                                    <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M20 6L9 17l-5-5"></path>
+                                    </svg>
+                                    <span class="btn__label">Approve</span>
+                                </button>
+                                <button class="btn btn--decision btn--deny" data-action="denied" data-id="${id}">
+                                    <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M18 6L6 18M6 6l12 12"></path>
+                                    </svg>
+                                    <span class="btn__label">Deny</span>
+                                </button>
+                            `;
+                        })();
 
                         const renderPanel = () => {
                             const recommendationCls = isRecommendationLoading
                                 ? "approval-panel__recommendation approval-panel__recommendation--unified approval-panel__recommendation--loading"
                                 : "approval-panel__recommendation approval-panel__recommendation--unified";
                             const recommendationHtml = isRecommendationLoading
-                                ? `<p class="approval-panel__loading-copy">Generating recommendation<span class="approval-panel__loading-dots" aria-hidden="true"></span></p>`
-                                : `<p>${escHtml(recommendationText)}</p>`;
+                                ? `<div class="msg__loading" role="status" aria-label="Generating recommendation"><span></span><span></span><span></span></div>`
+                                : `
+                                    <button class="approval-panel__redo-btn" type="button" data-redo-recommendation title="Regenerate recommendation" aria-label="Regenerate recommendation">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                            <path d="M3 3v5h5"></path>
+                                        </svg>
+                                    </button>
+                                    <p>${escHtml(recommendationText)}</p>
+                                `;
                             panel.innerHTML = `
                                 <div class="approval-panel__header">
                                     <h3>${escHtml(headerName)} — $${headerAmount}</h3>
@@ -1468,22 +1553,43 @@
                                 </div>
                                 <div class="approval-panel__actions approval-panel__actions--decide">
                                     <div class="approval-panel__btns">
-                                        <button class="btn btn--approve" data-action="approved" data-id="${id}">✓ Approve</button>
-                                        <button class="btn btn--deny"    data-action="denied"   data-id="${id}">✗ Deny</button>
+                                        ${decisionButtonsHtml}
                                     </div>
                                 </div>
                             `;
+                            panel.classList.toggle("approval-panel--recommendation-loading", isRecommendationLoading);
+                            const redoBtn = panel.querySelector("[data-redo-recommendation]");
+                            if (redoBtn) {
+                                redoBtn.addEventListener("click", async () => {
+                                    redoBtn.disabled = true;
+                                    isRecommendationLoading = true;
+                                    renderPanel();
+                                    try {
+                                        const res = await apiFetch(`/api/approvals/${id}?refresh=1`);
+                                        if (!res.ok) throw new Error("refresh failed");
+                                        const data = await res.json();
+                                        if (reqToken !== activeApprovalReqToken) return;
+                                        submission = { ...submission, ...data };
+                                        submissionsById.set(String(id), submission);
+                                        recommendationText = data.recommendation || "No recommendation generated.";
+                                    } catch {
+                                        if (reqToken !== activeApprovalReqToken) return;
+                                        recommendationText = "Recommendation unavailable right now.";
+                                    } finally {
+                                        if (reqToken !== activeApprovalReqToken) return;
+                                        isRecommendationLoading = false;
+                                        renderPanel();
+                                    }
+                                });
+                            }
                             panel.querySelectorAll("[data-action]").forEach(btn => {
                                 btn.addEventListener("click", async () => {
                                     const action = btn.dataset.action;
-                                    const approveBtn = panel.querySelector('[data-action="approved"]');
-                                    const denyBtn = panel.querySelector('[data-action="denied"]');
-                                    if (approveBtn) approveBtn.disabled = true;
-                                    if (denyBtn) denyBtn.disabled = true;
-                                    const note =
-                                        isRecommendationLoading || /Generating recommendation/i.test(recommendationText)
-                                            ? null
-                                            : recommendationText;
+                                    panel.querySelectorAll("[data-action]").forEach((actionBtn) => {
+                                        actionBtn.disabled = true;
+                                    });
+                                    if (redoBtn) redoBtn.disabled = true;
+                                    const note = isRecommendationLoading ? null : recommendationText;
                                     try {
                                         await apiFetch(`/api/approvals/${id}/decide`, {
                                             method: "POST",
@@ -1491,12 +1597,15 @@
                                             body: JSON.stringify({ action, note }),
                                         });
                                         if (reqToken === activeApprovalReqToken) {
+                                            panel.classList.remove("approval-panel--recommendation-loading");
                                             panel.innerHTML = approvalPanelEmpty;
                                             loadSubmissions(view.querySelector("#statusFilter").value);
                                         }
                                     } catch {
-                                        if (approveBtn) approveBtn.disabled = false;
-                                        if (denyBtn) denyBtn.disabled = false;
+                                        panel.querySelectorAll("[data-action]").forEach((actionBtn) => {
+                                            actionBtn.disabled = false;
+                                        });
+                                        if (redoBtn) redoBtn.disabled = false;
                                     }
                                 });
                             });
@@ -1504,19 +1613,23 @@
 
                         renderPanel();
                         panel.scrollIntoView({ behavior: "smooth" });
-                        try {
-                            const res = await apiFetch(`/api/approvals/${id}`);
-                            if (!res.ok) throw new Error("fetch failed");
-                            const data = await res.json();
-                            if (reqToken !== activeApprovalReqToken) return;
-                            recommendationText = data.recommendation || "No recommendation generated.";
-                            isRecommendationLoading = false;
-                            renderPanel();
-                        } catch {
-                            if (reqToken !== activeApprovalReqToken) return;
-                            recommendationText = "Recommendation unavailable right now. You can still approve or deny.";
-                            isRecommendationLoading = false;
-                            renderPanel();
+                        if (isRecommendationLoading) {
+                            try {
+                                const res = await apiFetch(`/api/approvals/${id}`);
+                                if (!res.ok) throw new Error("fetch failed");
+                                const data = await res.json();
+                                if (reqToken !== activeApprovalReqToken) return;
+                                submission = { ...submission, ...data };
+                                submissionsById.set(String(id), submission);
+                                recommendationText = data.recommendation || "No recommendation generated.";
+                                isRecommendationLoading = false;
+                                renderPanel();
+                            } catch {
+                                if (reqToken !== activeApprovalReqToken) return;
+                                recommendationText = "Recommendation unavailable right now.";
+                                isRecommendationLoading = false;
+                                renderPanel();
+                            }
                         }
                     };
 
@@ -1525,7 +1638,7 @@
                     const loadMyRequests = () => {
                         const body = view.querySelector("#mySubmissionsBody");
                         const badge = view.querySelector("#myRequestsBadge");
-                        body.innerHTML = `<div class="sr-skeleton"></div><div class="sr-skeleton"></div>`;
+                        body.innerHTML = uxLoadingHtml("Loading your requests…");
                         apiFetch("/api/approvals?status=all")
                             .then(r => r.json())
                             .then(subs => {
@@ -1609,6 +1722,8 @@
             }
             if (routeId === "expense-reports") {
                 const loadReports = () => {
+                    const listEl = view.querySelector("#reportsList");
+                    if (listEl) listEl.innerHTML = uxLoadingHtml("Loading reports…");
                     apiFetch("/api/reports")
                         .then(r => r.json())
                         .then(reports => {
@@ -1628,8 +1743,18 @@
                                     <p class="report-card__policy">${escHtml(r.policy_summary || "")}</p>
                                     ${r.status === "pending" && this.state.account === "Admin" ? `
                                     <div class="report-card__actions">
-                                        <button class="btn btn--approve" data-report="${r.id}" data-action="approved">✓ Approve</button>
-                                        <button class="btn btn--deny"    data-report="${r.id}" data-action="denied">✗ Deny</button>
+                                        <button class="btn btn--decision btn--approve" data-report="${r.id}" data-action="approved">
+                                            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M20 6L9 17l-5-5"></path>
+                                            </svg>
+                                            <span class="btn__label">Approve</span>
+                                        </button>
+                                        <button class="btn btn--decision btn--deny" data-report="${r.id}" data-action="denied">
+                                            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M18 6L6 18M6 6l12 12"></path>
+                                            </svg>
+                                            <span class="btn__label">Deny</span>
+                                        </button>
                                     </div>` : ""}
                                 </div>
                             `).join("");
@@ -1684,6 +1809,8 @@
                         const end = this.getDateInputValue(view.querySelector("#reportEnd"));
                         if (!empId || !start || !end) { alert("Please select an employee and date range."); return; }
                         const btn = view.querySelector("#generateBtn");
+                        const reportsListEl = view.querySelector("#reportsList");
+                        if (reportsListEl) reportsListEl.innerHTML = uxLoadingHtml("Generating reports…");
                         btn.disabled = true;
                         btn.textContent = "Generating…";
                         try {
