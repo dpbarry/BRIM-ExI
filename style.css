@@ -2196,7 +2196,7 @@ html[data-theme="dark"] .apexcharts-tooltip {
   font-size: 0.72rem;
   color: var(--color-text-sub);
 }
-.sr-charcount--warn {
+.request-form__charcount--warn {
   color: #f59e0b;
 }
 .sr-feedback {
@@ -3137,6 +3137,68 @@ html[data-theme="dark"] .btn--deny:hover {
     font-size: 0.74rem;
 }
 
+.request-designer .reports-designer__body {
+    gap: 0.62rem;
+}
+
+.request-designer__prompt {
+    max-height: 2.05rem;
+}
+
+.request-designer__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.58rem;
+}
+
+.request-designer__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+}
+
+.request-designer__field--full {
+    grid-column: 1 / -1;
+}
+
+.request-designer__label {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.request-designer__input {
+    min-height: 2.12rem;
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--color-border) 88%, var(--color-text-muted) 12%);
+    border-radius: 0.62rem;
+    background: color-mix(in srgb, var(--color-bg-elevated) 90%, var(--color-bg-muted));
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    padding: 0.44rem 0.72rem;
+    transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.request-designer__input:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-accent) 56%, var(--color-border));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.request-designer__textarea {
+    min-height: 4.9rem;
+    resize: vertical;
+}
+
+.request-designer__actions {
+    justify-content: flex-end;
+}
+
 .gallery-empty,
 .empty-state {
     margin: 0;
@@ -3160,6 +3222,10 @@ html[data-theme="dark"] .btn--deny:hover {
     .approval-panel.ux-panel,
     .approvals-list-panel .submissions-list {
         max-height: none;
+    }
+
+    .request-designer__grid {
+        grid-template-columns: 1fr;
     }
 }
 

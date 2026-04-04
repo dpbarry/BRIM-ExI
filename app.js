@@ -221,51 +221,51 @@
                             <h1 class="ux-hero__title">Hi, John.</h1>
                             <p class="ux-hero__sub">Describe your expense in plain language — finance gets an AI-powered recommendation automatically.</p>
                         </header>
-                        <div class="pc-panel ux-panel">
-                            <div class="ux-panel__head">
+                        <div class="pc-panel ux-panel reports-designer request-designer">
+                            <div class="ux-panel__head ux-panel__head--split">
                                 <h2 class="ux-panel__title">New Request</h2>
                             </div>
-                            <!-- Step 1: Textarea -->
-                            <div id="requestStep" class="request-form">
-                                <textarea id="requestText" class="request-form__textarea"
-                                    aria-label="Expense request details"
-                                    placeholder="e.g. I need approval for $850 for a client dinner at Harbour House on April 12th." rows="4" autocomplete="off" spellcheck="false"></textarea>
+                            <div class="reports-designer__body">
+                                <div class="reports-designer__prompt-shell request-designer__prompt-shell">
+                                    <textarea id="requestText" class="reports-designer__prompt request-designer__prompt" rows="1" placeholder="Describe request then press enter to autofill."></textarea>
+                                    <button id="aiFillRequestBtn" class="reports-designer__icon-btn reports-designer__prompt-ai-btn" type="button" aria-label="Autofill fields from request text" title="Autofill fields from request text">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M12 3.8 13.7 8l4.2 1.7-4.2 1.8-1.7 4.2-1.8-4.2L6 9.7 10.2 8Z" />
+                                            <path d="M17.4 14.4 18.2 16.5l2.1.8-2.1.9-.8 2.1-.9-2.1-2.1-.9 2.1-.8Z" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 <div class="request-form__footer">
                                     <span id="requestCharCount" class="request-form__charcount">0 / 500</span>
-                                    <button type="button" id="reviewRequestBtn" class="btn btn--primary">Review Request</button>
                                 </div>
+                                <div class="request-designer__grid">
+                                    <div class="request-designer__field">
+                                        <label class="request-designer__label" for="reviewName">Name</label>
+                                        <input type="text" id="reviewName" class="request-designer__input" value="John Smith" autocomplete="off" />
+                                    </div>
+                                    <div class="request-designer__field">
+                                        <label class="request-designer__label" for="reviewDepartment">Department</label>
+                                        <input type="text" id="reviewDepartment" class="request-designer__input" value="Sales" autocomplete="off" />
+                                    </div>
+                                    <div class="request-designer__field">
+                                        <label class="request-designer__label" for="reviewAmount">Amount ($)</label>
+                                        <input type="text" id="reviewAmount" class="request-designer__input" placeholder="e.g. 850" autocomplete="off" />
+                                    </div>
+                                    <div class="request-designer__field">
+                                        <label class="request-designer__label" for="reviewDate">Tentative Date</label>
+                                        <input type="text" id="reviewDate" class="request-designer__input date-input ux-date" autocomplete="off" placeholder="Select a date" readonly />
+                                    </div>
+                                    <div class="request-designer__field request-designer__field--full">
+                                        <label class="request-designer__label" for="reviewPurpose">Purpose</label>
+                                        <textarea id="reviewPurpose" class="request-designer__input request-designer__textarea"
+                                            rows="3" placeholder="Describe the expense..." autocomplete="off"></textarea>
+                                    </div>
+                                </div>
+                                <div class="reports-designer__actions request-designer__actions">
+                                    <button type="button" id="submitRequestBtn" class="btn btn--primary">Submit Request</button>
+                                </div>
+                                <div id="submitFeedback" class="sr-feedback" hidden></div>
                             </div>
-                            <!-- Step 2: Review form (hidden until parsed) -->
-                            <div id="reviewStep" class="review-form" hidden>
-                                <div class="review-form__grid">
-                                    <div class="review-form__field">
-                                        <label class="review-form__label" for="reviewName">Name</label>
-                                        <input type="text" id="reviewName" class="review-form__input" value="John Smith" autocomplete="off" />
-                                    </div>
-                                    <div class="review-form__field">
-                                        <label class="review-form__label" for="reviewDepartment">Department</label>
-                                        <input type="text" id="reviewDepartment" class="review-form__input" value="Sales" autocomplete="off" />
-                                    </div>
-                                    <div class="review-form__field">
-                                        <label class="review-form__label" for="reviewAmount">Amount ($)</label>
-                                        <input type="text" id="reviewAmount" class="review-form__input" placeholder="e.g. 850" autocomplete="off" />
-                                    </div>
-                                    <div class="review-form__field">
-                                        <label class="review-form__label" for="reviewDate">Tentative Date</label>
-                                        <input type="text" id="reviewDate" class="review-form__input" placeholder="e.g. 2026-04-12" autocomplete="off" />
-                                    </div>
-                                    <div class="review-form__field review-form__field--full">
-                                        <label class="review-form__label" for="reviewPurpose">Purpose</label>
-                                        <textarea id="reviewPurpose" class="review-form__input review-form__textarea-sm"
-                                            rows="3" placeholder="Describe the expense…" autocomplete="off"></textarea>
-                                    </div>
-                                </div>
-                                <div class="review-form__footer">
-                                    <button type="button" id="editRequestBtn" class="btn btn--ghost">Edit Request</button>
-                                    <button type="button" id="confirmSubmitBtn" class="btn btn--primary">Confirm &amp; Submit</button>
-                                </div>
-                            </div>
-                            <div id="submitFeedback" class="sr-feedback" hidden></div>
                         </div>
                         <div class="pc-panel ux-panel">
                             <div class="ux-panel__head ux-panel__head--split">
@@ -305,7 +305,7 @@
                             </div>
                             <div class="reports-designer__body">
                                 <div class="reports-designer__prompt-shell">
-                                    <textarea id="reportPrompt" class="reports-designer__prompt" rows="1" placeholder="Describe requirements then click button to autofill"></textarea>
+                                    <textarea id="reportPrompt" class="reports-designer__prompt" rows="1" placeholder="Describe request then press enter to autofill."></textarea>
                                     <button id="aiFillReportFiltersBtn" class="reports-designer__icon-btn reports-designer__prompt-ai-btn" type="button" aria-label="Fill fields using AI from prompt" title="Fill fields using AI from prompt">
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
                                             <path d="M12 3.8 13.7 8l4.2 1.7-4.2 1.8-1.7 4.2-1.8-4.2L6 9.7 10.2 8Z" />
@@ -1962,72 +1962,107 @@
 
                     const textarea = view.querySelector("#requestText");
                     const charCount = view.querySelector("#requestCharCount");
-                    textarea?.addEventListener("input", () => {
+                    const amountInput = view.querySelector("#reviewAmount");
+                    const dateInput = view.querySelector("#reviewDate");
+                    const purposeInput = view.querySelector("#reviewPurpose");
+                    this.enhanceDateInput(dateInput);
+
+                    const syncCharCount = () => {
+                        if (!textarea || !charCount) return;
                         const len = textarea.value.length;
                         charCount.textContent = `${len} / 500`;
                         charCount.classList.toggle("request-form__charcount--warn", len > 450);
-                    });
+                    };
+                    textarea?.addEventListener("input", syncCharCount);
+                    syncCharCount();
 
-                    // Step 1 → Step 2: parse and show review form
-                    view.querySelector("#reviewRequestBtn")?.addEventListener("click", () => {
-                        const text = textarea.value.trim();
-                        if (!text) return;
+                    const applyPromptAutofill = () => {
+                        const text = String(textarea?.value || "").trim();
+                        if (!text) return false;
                         const amount = parseAmount(text);
-                        const dateStr = parseTentativeDate(text);
+                        const dateIso = parseTentativeDate(text);
                         const purpose = parsePurpose(text);
-                        view.querySelector("#reviewAmount").value  = amount !== null ? String(amount) : '';
-                        view.querySelector("#reviewDate").value    = dateStr || '';
-                        view.querySelector("#reviewPurpose").value = purpose || '';
-                        view.querySelector("#requestStep").hidden  = true;
-                        view.querySelector("#reviewStep").hidden   = false;
-                        view.querySelector("#submitFeedback").hidden = true;
+                        if (amount !== null && amountInput) {
+                            amountInput.value = String(amount);
+                        }
+                        if (dateIso && dateInput) {
+                            this.setDateInputValue(dateInput, dateIso);
+                        }
+                        if (purpose && purposeInput) {
+                            purposeInput.value = purpose;
+                        }
+                        return true;
+                    };
+
+                    view.querySelector("#aiFillRequestBtn")?.addEventListener("click", () => {
+                        const feedback = view.querySelector("#submitFeedback");
+                        const didFill = applyPromptAutofill();
+                        if (!feedback) return;
+                        if (!didFill) {
+                            feedback.textContent = "Write a request first, then click sparkle to autofill.";
+                            feedback.className = "sr-feedback sr-feedback--error";
+                            feedback.hidden = false;
+                            textarea?.focus();
+                            return;
+                        }
+                        feedback.hidden = true;
+                    });
+                    textarea?.addEventListener("keydown", (e) => {
+                        if (e.key !== "Enter" || e.shiftKey) return;
+                        e.preventDefault();
+                        view.querySelector("#aiFillRequestBtn")?.click();
                     });
 
-                    // Step 2 → Step 1: edit
-                    view.querySelector("#editRequestBtn")?.addEventListener("click", () => {
-                        view.querySelector("#reviewStep").hidden  = true;
-                        view.querySelector("#requestStep").hidden = false;
-                    });
-
-                    // Confirm & Submit
-                    view.querySelector("#confirmSubmitBtn")?.addEventListener("click", async () => {
-                        const name       = view.querySelector("#reviewName").value.trim();
+                    view.querySelector("#submitRequestBtn")?.addEventListener("click", async () => {
+                        const name = view.querySelector("#reviewName").value.trim();
                         const department = view.querySelector("#reviewDepartment").value.trim();
-                        const amountRaw  = view.querySelector("#reviewAmount").value.trim();
-                        const dateRaw    = view.querySelector("#reviewDate").value.trim();
-                        const purpose    = view.querySelector("#reviewPurpose").value.trim();
-                        const rawText    = textarea.value.trim();
+                        const amountRaw = String(amountInput?.value || "").trim();
+                        const dateRaw = this.getDateInputValue(dateInput);
+                        const purpose = String(purposeInput?.value || "").trim();
+                        const rawText = String(textarea?.value || "").trim();
                         if (!purpose && !rawText) return;
-                        const amountNum  = amountRaw ? parseFloat(amountRaw.replace(/[^0-9.]/g, '')) : null;
-                        const feedback   = view.querySelector("#submitFeedback");
-                        const btn        = view.querySelector("#confirmSubmitBtn");
-                        btn.disabled = true; btn.textContent = "Submitting…"; feedback.hidden = true;
+                        const amountNum = amountRaw ? parseFloat(amountRaw.replace(/[^0-9.]/g, "")) : null;
+                        const feedback = view.querySelector("#submitFeedback");
+                        const btn = view.querySelector("#submitRequestBtn");
+                        const synthesizedRaw = rawText || `${purpose || "Expense request"}${amountRaw ? ` for $${amountRaw}` : ""}${dateRaw ? ` on ${dateRaw}` : ""}`;
+
+                        btn.disabled = true;
+                        btn.textContent = "Submitting…";
+                        feedback.hidden = true;
                         try {
                             const res = await apiFetch("/api/approvals", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
-                                    raw_request:       `I'm John. ${rawText}`,
-                                    parsed_name:       name,
+                                    raw_request: `I'm John. ${synthesizedRaw}`,
+                                    parsed_name: name,
                                     parsed_department: department,
-                                    parsed_purpose:    purpose || rawText,
-                                    parsed_amount:     Number.isFinite(amountNum) ? amountNum : 0,
-                                    tentative_date:    dateRaw || null,
+                                    parsed_purpose: purpose || rawText,
+                                    parsed_amount: Number.isFinite(amountNum) ? amountNum : 0,
+                                    tentative_date: dateRaw || null,
                                 }),
                             });
                             if (!res.ok) throw new Error("submit failed");
-                            textarea.value = ''; charCount.textContent = '0 / 500';
-                            view.querySelector("#reviewStep").hidden  = true;
-                            view.querySelector("#requestStep").hidden = false;
+                            if (textarea) textarea.value = "";
+                            if (amountInput) amountInput.value = "";
+                            if (purposeInput) purposeInput.value = "";
+                            this.setDateInputValue(dateInput, "");
+                            syncCharCount();
                             feedback.textContent = "✓ Request submitted — finance will be notified.";
-                            feedback.className   = "sr-feedback sr-feedback--success";
-                            feedback.hidden = false; btn.textContent = "Confirm & Submit"; btn.disabled = false;
+                            feedback.className = "sr-feedback sr-feedback--success";
+                            feedback.hidden = false;
+                            btn.textContent = "Submit Request";
+                            btn.disabled = false;
                             loadMyRequests();
-                            setTimeout(() => { feedback.hidden = true; }, 4000);
+                            setTimeout(() => {
+                                feedback.hidden = true;
+                            }, 4000);
                         } catch {
                             feedback.textContent = "Something went wrong. Please try again.";
-                            feedback.className   = "sr-feedback sr-feedback--error";
-                            feedback.hidden = false; btn.disabled = false; btn.textContent = "Confirm & Submit";
+                            feedback.className = "sr-feedback sr-feedback--error";
+                            feedback.hidden = false;
+                            btn.disabled = false;
+                            btn.textContent = "Submit Request";
                         }
                     });
                 }
@@ -2210,6 +2245,11 @@
                     } finally {
                         setBusy(false, "Generate PDF", "Send by Email");
                     }
+                });
+                promptEl?.addEventListener("keydown", (e) => {
+                    if (e.key !== "Enter" || e.shiftKey) return;
+                    e.preventDefault();
+                    view.querySelector("#aiFillReportFiltersBtn")?.click();
                 });
 
                 const generatePdf = async (withEmail) => {
