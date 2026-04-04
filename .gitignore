@@ -1,3 +1,7 @@
 node_modules/
 .env
 exi.db
+cloudflare-worker/node_modules/
+cloudflare-worker/.wrangler/
+cloudflare-worker/.dev.vars
+cloudflare-worker/seed/seed-data.sql

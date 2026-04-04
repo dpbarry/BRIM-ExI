@@ -1,0 +1,14 @@
+name = "exi-api"
+main = "src/index.js"
+compatibility_date = "2026-04-04"
+
+[vars]
+# Set this to your GitHub Pages origin (or "*" for quick testing)
+CORS_ORIGIN = "https://dpbarry.github.io"
+# Set this to your deployed Worker URL so approval emails can build links
+WORKER_PUBLIC_URL = "https://exi-api.deanbarry100.workers.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "exi"
+database_id = "6ae385cb-02eb-4f3b-9d34-9199fd822564"

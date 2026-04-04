@@ -4,7 +4,10 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "worker:dev": "npm --prefix cloudflare-worker run dev",
+    "worker:deploy": "npm --prefix cloudflare-worker run deploy",
+    "worker:seed-export": "node scripts/export-d1-seed.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",

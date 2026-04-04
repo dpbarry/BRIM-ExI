@@ -8,6 +8,7 @@
         sidebarExpanded: "exi.sidebarExpanded",
         policyRules: "exi.policyRules",
         sessionId: "exi.session_id",
+        apiBase: "exi.api_base",
     };
 
     const DEFAULT_ROUTE = "talk-to-data";
@@ -346,6 +347,25 @@
             store.set(STORAGE.sessionId, id);
         }
         return id;
+    }
+
+    function getApiBase() {
+        const fromGlobal = String(window.EXI_API_BASE || "").trim();
+        const fromStorage = String(store.get(STORAGE.apiBase) || "").trim();
+        const raw = fromGlobal || fromStorage;
+        if (!raw) return "";
+        return raw.replace(/\/+$/, "");
+    }
+
+    function apiUrl(path) {
+        const raw = String(path || "");
+        if (/^https?:\/\//i.test(raw)) return raw;
+        const base = getApiBase();
+        return base ? `${base}${raw}` : raw;
+    }
+
+    function apiFetch(path, options) {
+        return fetch(apiUrl(path), options);
     }
 
     function normalizeText(value) {
@@ -901,7 +921,7 @@
                     await this._ensureSavedChartsIndex();
                     const alreadySaved = this._savedChartSignatures.has(signature);
                     const method = alreadySaved ? "DELETE" : "POST";
-                    const res = await fetch("/api/chat/saved-charts", {
+                    const res = await apiFetch("/api/chat/saved-charts", {
                         method,
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -1043,7 +1063,7 @@
         async _ensureSavedChartsIndex(force = false) {
             if (force) this._savedChartsLoadedPromise = null;
             if (!this._savedChartsLoadedPromise) {
-                this._savedChartsLoadedPromise = fetch("/api/chat/saved-charts")
+                this._savedChartsLoadedPromise = apiFetch("/api/chat/saved-charts")
                     .then((r) => {
                         if (!r.ok) throw new Error("load failed");
                         return r.json();
@@ -1156,7 +1176,7 @@
             let finalText = null;
             let chartConfig = null;
             try {
-                const res = await fetch("/api/chat", {
+                const res = await apiFetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ message: trimmed, session_id: getSessionId() }),
@@ -1215,7 +1235,7 @@
             this._talkStreamBubble = null;
             this._talkLastUserMsgEl = null;
             store.set(STORAGE.talkMessages, "[]");
-            fetch(`/api/chat/history/${getSessionId()}`, { method: "DELETE" }).catch(() => {});
+            apiFetch(`/api/chat/history/${getSessionId()}`, { method: "DELETE" }).catch(() => {});
             const page = view.querySelector(".talk-page");
             const thread = view.querySelector("#talkThread");
             page?.classList.remove("has-message");
@@ -1288,7 +1308,7 @@
                     });
                 };
 
-                fetch("/api/chat/saved-charts")
+                apiFetch("/api/chat/saved-charts")
                     .then(r => r.json())
                     .then(charts => {
                         this._savedChartSignatures = new Set(
@@ -1343,7 +1363,7 @@
                                 if (trashBtn.disabled) return;
                                 trashBtn.disabled = true;
                                 try {
-                                    const res = await fetch("/api/chat/saved-charts", {
+                                    const res = await apiFetch("/api/chat/saved-charts", {
                                         method: "DELETE",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({
@@ -1381,7 +1401,7 @@
                     const loadSubmissions = (status) => {
                         const list = view.querySelector("#submissionsList");
                         list.innerHTML = "Loading…";
-                        fetch(`/api/approvals?status=${status}`)
+                        apiFetch(`/api/approvals?status=${status}`)
                             .then(r => r.json())
                             .then(subs => {
                                 submissionsById = new Map((subs || []).map((s) => [String(s.id), s]));
@@ -1465,7 +1485,7 @@
                                             ? null
                                             : recommendationText;
                                     try {
-                                        await fetch(`/api/approvals/${id}/decide`, {
+                                        await apiFetch(`/api/approvals/${id}/decide`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({ action, note }),
@@ -1485,7 +1505,7 @@
                         renderPanel();
                         panel.scrollIntoView({ behavior: "smooth" });
                         try {
-                            const res = await fetch(`/api/approvals/${id}`);
+                            const res = await apiFetch(`/api/approvals/${id}`);
                             if (!res.ok) throw new Error("fetch failed");
                             const data = await res.json();
                             if (reqToken !== activeApprovalReqToken) return;
@@ -1506,7 +1526,7 @@
                         const body = view.querySelector("#mySubmissionsBody");
                         const badge = view.querySelector("#myRequestsBadge");
                         body.innerHTML = `<div class="sr-skeleton"></div><div class="sr-skeleton"></div>`;
-                        fetch("/api/approvals?status=all")
+                        apiFetch("/api/approvals?status=all")
                             .then(r => r.json())
                             .then(subs => {
                                 const mine = subs.filter(s =>
@@ -1561,7 +1581,7 @@
                         btn.textContent = "Submitting…";
                         feedback.hidden = true;
                         try {
-                            const res = await fetch("/api/approvals", {
+                            const res = await apiFetch("/api/approvals", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
@@ -1589,7 +1609,7 @@
             }
             if (routeId === "expense-reports") {
                 const loadReports = () => {
-                    fetch("/api/reports")
+                    apiFetch("/api/reports")
                         .then(r => r.json())
                         .then(reports => {
                             const list = view.querySelector("#reportsList");
@@ -1615,7 +1635,7 @@
                             `).join("");
                             list.querySelectorAll("[data-report]").forEach(btn => {
                                 btn.addEventListener("click", () => {
-                                    fetch(`/api/reports/${btn.dataset.report}/decide`, {
+                                    apiFetch(`/api/reports/${btn.dataset.report}/decide`, {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({ action: btn.dataset.action }),
@@ -1630,7 +1650,7 @@
 
                 if (this.state.account === "Admin") {
                     const refreshEmployeePicker = this.enhanceSelectControl(view, "#reportEmployee");
-                    fetch("/api/employees")
+                    apiFetch("/api/employees")
                         .then(r => r.json())
                         .then(employees => {
                             const sel = view.querySelector("#reportEmployee");
@@ -1667,7 +1687,7 @@
                         btn.disabled = true;
                         btn.textContent = "Generating…";
                         try {
-                            const res = await fetch("/api/reports/generate", {
+                            const res = await apiFetch("/api/reports/generate", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ employee_id: parseInt(empId), date_start: start, date_end: end }),
@@ -1707,7 +1727,7 @@
             const self = this;
             const sessionId = getSessionId();
             const thread = view.querySelector("#talkThread");
-            fetch(`/api/chat/history/${sessionId}`)
+            apiFetch(`/api/chat/history/${sessionId}`)
                 .then(r => r.json())
                 .then(history => {
                     // Clear thread to avoid double-render with hydrateTalkThread
@@ -2658,8 +2678,8 @@
 
             const refreshComplianceData = async () => {
                 const [violationsRes, leaderboardRes] = await Promise.all([
-                    fetch("/api/compliance/violations"),
-                    fetch("/api/compliance/leaderboard"),
+                    apiFetch("/api/compliance/violations"),
+                    apiFetch("/api/compliance/leaderboard"),
                 ]);
                 if (!violationsRes.ok || !leaderboardRes.ok) {
                     throw new Error("Failed to reload compliance data.");
@@ -2699,7 +2719,7 @@
                     scanBtn.disabled = true;
                     scanBtn.textContent = "Scanning\u2026";
                     try {
-                        const res = await fetch("/api/compliance/scan", { method: "POST" });
+                        const res = await apiFetch("/api/compliance/scan", { method: "POST" });
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || "Scan failed");
                         await refreshComplianceData();
