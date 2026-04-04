@@ -1935,7 +1935,8 @@
                     scanBtn.textContent = "Scanning\u2026";
                     try {
                         const res = await fetch("/api/compliance/scan", { method: "POST" });
-                        await res.json();
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || "Scan failed");
                         scanBtn.textContent = "Scan Complete";
                         // Reload page to show new violations
                         self.navigate("policy-violations");
