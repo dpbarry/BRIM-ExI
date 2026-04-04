@@ -1957,7 +1957,7 @@ html[data-theme="dark"] .dlg-backdrop--nested {
 .dlg__note-area:focus {
     outline: none;
     border-color: var(--color-accent-border);
-    box-shadow: var(--shadow-focus);
+    box-shadow: none;
 }
 
 .dlg__note-area::placeholder {
@@ -2677,7 +2677,7 @@ html[data-theme="dark"] .btn--deny:hover {
 .approval-panel__note:focus {
     outline: none;
     border-color: var(--color-accent-border);
-    box-shadow: var(--shadow-focus);
+    box-shadow: none;
 }
 
 .saved-visuals-page .sv-gallery {
@@ -2981,7 +2981,7 @@ html[data-theme="dark"] .btn--deny:hover {
 
 .reports-designer__prompt-shell:focus-within {
     border-color: color-mix(in srgb, var(--color-accent) 56%, var(--color-border));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+    box-shadow: none;
 }
 
 .reports-designer__prompt {
@@ -3113,7 +3113,7 @@ html[data-theme="dark"] .btn--deny:hover {
 
 .reports-designer__email:focus {
     border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+    box-shadow: none;
     outline: none;
 }
 
@@ -3216,7 +3216,7 @@ html[data-theme="dark"] .btn--deny:hover {
 .request-designer__input:focus {
     outline: none;
     border-color: color-mix(in srgb, var(--color-accent) 56%, var(--color-border));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+    box-shadow: none;
 }
 
 .request-designer__textarea {
