@@ -111,13 +111,17 @@ router.post('/', async (req, res) => {
 
     const submission = db.prepare('SELECT * FROM submissions WHERE id = ?').get(sub.lastInsertRowid);
 
-    // Generate recommendation and send email asynchronously (non-blocking)
+    // Send email immediately with a placeholder so Approve/Deny links work right away,
+    // then try to generate the AI recommendation in the background.
+    const placeholder = 'AI recommendation is being generated — open the ExI web app for the full analysis.';
+    sendApprovalEmail(submission, placeholder, token)
+      .catch(err => console.error('Email send error (initial):', err));
+
     generateRecommendation(submission)
       .then(({ recommendation }) => {
         persistRecommendation(db, submission.id, recommendation);
-        sendApprovalEmail(submission, recommendation, token);
       })
-      .catch(err => console.error('Email send error:', err));
+      .catch(err => console.error('Recommendation generation error:', err));
 
     res.json({ success: true, id: sub.lastInsertRowid, parsed });
   } catch (err) {

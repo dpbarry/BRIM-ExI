@@ -2669,12 +2669,24 @@
 
                 const reprimandBtn = document.createElement("button");
                 reprimandBtn.type = "button";
-                reprimandBtn.className = "dlg__btn dlg__btn--reprimand";
-                reprimandBtn.setAttribute("aria-label", "Reprimand by email");
-                reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Reprimand</span>`;
-                reprimandBtn.addEventListener("click", () => {
-                    reprimandBtn.innerHTML = `${CHECK_SVG}<span>Sent</span>`;
+                reprimandBtn.className = "dlg__btn dlg__btn--notify";
+                reprimandBtn.setAttribute("aria-label", "Notify employee by email");
+                reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Notify Employee</span>`;
+                reprimandBtn.addEventListener("click", async () => {
                     reprimandBtn.disabled = true;
+                    reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Sending\u2026</span>`;
+                    try {
+                        const res = await apiFetch(`/api/compliance/notify/${viol.id}`, { method: "POST" });
+                        if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            throw new Error(data.error || "Failed to send");
+                        }
+                        reprimandBtn.innerHTML = `${CHECK_SVG}<span>Sent</span>`;
+                    } catch (err) {
+                        reprimandBtn.disabled = false;
+                        reprimandBtn.innerHTML = `${EMAIL_SVG}<span>Retry</span>`;
+                        alert(err.message || "Could not send notification email.");
+                    }
                 });
 
                 const dismissBtn = document.createElement("button");
@@ -2822,7 +2834,7 @@
                     date: v.date || "",
                     rule: v.rule_text || "",
                     severity: v.severity,
-                    note: v.reasoning || "",
+                    note: v.note || v.ai_reasoning || "",
                 }));
                 leaderboardData = leaderboard.map(e => ({
                     employee: e.employee,

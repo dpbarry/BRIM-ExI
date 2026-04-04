@@ -1972,19 +1972,19 @@ html[data-theme="dark"] .dlg-backdrop--nested {
 
 .dlg__btn:hover { background: var(--color-bg-muted); }
 
-.dlg__btn--reprimand {
+.dlg__btn--notify {
     color: var(--color-sev-med);
     border-color: var(--color-sev-med);
     background: var(--color-sev-med-bg);
     margin-right: auto;
 }
 
-.dlg__btn--reprimand:hover {
+.dlg__btn--notify:hover {
     background: var(--color-sev-med);
     color: #fff;
 }
 
-.dlg__btn--reprimand:disabled {
+.dlg__btn--notify:disabled {
     opacity: 0.6;
     cursor: default;
     pointer-events: none;
