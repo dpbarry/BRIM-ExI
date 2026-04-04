@@ -56,9 +56,9 @@
                         <div class="talk-page__thread-mask talk-page__thread-mask--bottom" aria-hidden="true" data-visible="false"></div>
                     </div>
                     <section class="composer" aria-label="Talk to your data composer">
-                        <form class="composer__card" data-role="prompt-form">
+                        <form class="composer__card" data-role="prompt-form" autocomplete="off">
                             <label class="sr-only" for="talkPrompt">Type your question</label>
-                            <textarea id="talkPrompt" class="composer__input" placeholder="Type your question here..." rows="1"></textarea>
+                            <textarea id="talkPrompt" class="composer__input" placeholder="Type your question here..." rows="1" autocomplete="off" spellcheck="false"></textarea>
                             <div class="composer__actions">
                                 <button type="submit" class="send-button" aria-label="Send prompt">
                                     <svg class="send-button__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -96,14 +96,28 @@
             title: "Saved Visuals",
             navLabel: "Saved Visuals",
             render: (_state) => `
-                <section class="page saved-visuals-page">
-                    <header class="page-header">
-                        <h1 class="page-header__title">Saved Visuals</h1>
-                        <p class="page-header__sub">Charts saved from your data conversations.</p>
-                    </header>
-                    <div class="gallery-grid" id="galleryGrid">
-                        <div class="gallery-loading">Loading charts…</div>
+                <section class="page pc-page ux-page saved-visuals-page">
+                    <div class="pc-wrap ux-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Brim Intel</p>
+                            <h1 class="ux-hero__title">Saved visuals</h1>
+                            <p class="ux-hero__sub">Every chart saved from Talk to Data, ready to reuse in reviews and decision meetings.</p>
+                        </header>
+                        <div class="sv-gallery" id="galleryGrid">
+                            <div class="gallery-loading">Loading charts…</div>
+                        </div>
                     </div>
+                    <dialog id="chartDialog" class="chart-dialog">
+                        <div class="chart-dialog__inner">
+                            <button type="button" class="chart-dialog__close" aria-label="Close">&times;</button>
+                            <div class="chart-dialog__chart" id="chartDialogChart"></div>
+                            <div class="chart-dialog__meta">
+                                <p class="chart-dialog__query" id="chartDialogQuery"></p>
+                                <p class="chart-dialog__ts" id="chartDialogTs"></p>
+                            </div>
+                            <p class="chart-dialog__response" id="chartDialogResponse"></p>
+                        </div>
+                    </dialog>
                 </section>`,
         },
         {
@@ -160,35 +174,66 @@
             id: "pre-approval",
             title: "Approve Requests",
             navLabel: "Approve requests",
+            johnLabel: "Submit Requests",
             render: (state) => state.account === "Admin"
-                ? `<section class="page approvals-page">
-                    <header class="page-header">
-                        <h1 class="page-header__title">Pre-Approval Requests</h1>
-                        <div class="page-header__actions">
-                            <select id="statusFilter" class="filter-select">
-                                <option value="pending">Pending</option>
-                                <option value="approved">Approved</option>
-                                <option value="denied">Denied</option>
-                                <option value="all">All</option>
-                            </select>
+                ? `<section class="page pc-page ux-page approvals-page">
+                    <div class="pc-wrap ux-wrap approvals-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Pre-Approval Engine</p>
+                            <h1 class="ux-hero__title">Review and decide requests</h1>
+                            <p class="ux-hero__sub">AI summarizes context, policy fit, and risk so finance can approve or deny quickly.</p>
+                        </header>
+                        <div class="approvals-layout">
+                            <div class="pc-panel ux-panel approvals-list-panel">
+                                <div class="ux-panel__head ux-panel__head--split">
+                                    <h2 class="ux-panel__title">Incoming Requests</h2>
+                                    <select id="statusFilter" class="filter-select ux-select" aria-label="Filter by status">
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="denied">Denied</option>
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                                <div id="submissionsList" class="submissions-list">Loading…</div>
+                            </div>
+                            <div id="approvalPanel" class="pc-panel ux-panel approval-panel" aria-live="polite">
+                                <div class="approval-panel__empty">Click a request and a recommendation will appear here.</div>
+                            </div>
                         </div>
-                    </header>
-                    <div id="submissionsList" class="submissions-list">Loading…</div>
-                    <div id="approvalPanel" class="approval-panel hidden"></div>
+                    </div>
                    </section>`
-                : `<section class="page approvals-page">
-                    <header class="page-header">
-                        <h1 class="page-header__title">Submit Expense Request</h1>
-                    </header>
-                    <form id="submitRequestForm" class="request-form">
-                        <label class="request-form__label" for="requestText">Describe your expense request</label>
-                        <textarea id="requestText" class="request-form__textarea"
-                            placeholder="e.g. Hi, I'm John from Sales. I need approval for $850 for a client dinner at a downtown restaurant." rows="5"></textarea>
-                        <button type="submit" class="btn btn--primary">Submit Request</button>
-                    </form>
-                    <div id="mySubmissions" class="submissions-list" style="margin-top:2rem">
-                        <h2 class="section-title">My Requests</h2>
-                        <div id="mySubmissionsBody">Loading…</div>
+                : `<section class="page pc-page ux-page approvals-page sr-page">
+                    <div class="pc-wrap ux-wrap approvals-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Expense Requests</p>
+                            <h1 class="ux-hero__title">Hi, John.</h1>
+                            <p class="ux-hero__sub">Describe your expense in plain language — finance gets an AI-powered recommendation automatically.</p>
+                        </header>
+                        <div class="pc-panel ux-panel">
+                            <div class="ux-panel__head">
+                                <h2 class="ux-panel__title">New Request</h2>
+                            </div>
+                            <form id="submitRequestForm" class="request-form" autocomplete="off">
+                                <textarea id="requestText" class="request-form__textarea"
+                                    aria-label="Expense request details"
+                                    placeholder="e.g. I need approval for $850 for a client dinner at Harbour House on April 12th." rows="4" autocomplete="off" spellcheck="false"></textarea>
+                                <div class="request-form__footer">
+                                    <span id="requestCharCount" class="request-form__charcount">0 / 500</span>
+                                    <button type="submit" class="btn btn--primary">Submit Request</button>
+                                </div>
+                            </form>
+                            <div id="submitFeedback" class="sr-feedback" hidden></div>
+                        </div>
+                        <div class="pc-panel ux-panel">
+                            <div class="ux-panel__head ux-panel__head--split">
+                                <h2 class="ux-panel__title">My Requests</h2>
+                                <span id="myRequestsBadge" class="sr-count-badge" hidden></span>
+                            </div>
+                            <div id="mySubmissionsBody" class="submissions-list sr-list">
+                                <div class="sr-skeleton"></div>
+                                <div class="sr-skeleton"></div>
+                            </div>
+                        </div>
                     </div>
                    </section>`,
         },
@@ -197,20 +242,32 @@
             title: "Expense Reports",
             navLabel: "Expense Reports",
             render: (state) => `
-                <section class="page reports-page">
-                    <header class="page-header">
-                        <h1 class="page-header__title">Expense Reports</h1>
-                        ${state.account === "Admin" ? `
-                        <div class="page-header__actions">
-                            <select id="reportEmployee" class="filter-select">
-                                <option value="">Select employee…</option>
-                            </select>
-                            <input type="date" id="reportStart" class="date-input" />
-                            <input type="date" id="reportEnd" class="date-input" />
-                            <button id="generateBtn" class="btn btn--primary">Generate Reports</button>
-                        </div>` : ""}
-                    </header>
-                    <div id="reportsList" class="reports-list">Loading…</div>
+                <section class="page pc-page ux-page reports-page">
+                    <div class="pc-wrap ux-wrap reports-wrap">
+                        <header class="ux-hero">
+                            <p class="ux-hero__kicker">Expense Reports</p>
+                            <h1 class="ux-hero__title">Grouped, policy-aware report bundles</h1>
+                            <p class="ux-hero__sub">AI clusters raw transactions into review-ready reports with policy context and approval actions.</p>
+                        </header>
+                        <div class="pc-panel ux-panel">
+                            ${state.account === "Admin" ? `
+                            <div class="ux-panel__head ux-panel__head--stack">
+                                <h2 class="ux-panel__title">Generate Report Set</h2>
+                                <div class="reports-toolbar">
+                                    <select id="reportEmployee" class="filter-select ux-select" aria-label="Employee for report">
+                                        <option value="">Select employee…</option>
+                                    </select>
+                                    <input type="text" id="reportStart" class="date-input ux-date" autocomplete="off" placeholder="DD/MM/YYYY" readonly />
+                                    <input type="text" id="reportEnd" class="date-input ux-date" autocomplete="off" placeholder="DD/MM/YYYY" readonly />
+                                    <button id="generateBtn" class="btn btn--primary">Generate Reports</button>
+                                </div>
+                            </div>` : `
+                            <div class="ux-panel__head">
+                                <h2 class="ux-panel__title">Report Queue</h2>
+                            </div>`}
+                            <div id="reportsList" class="reports-list">Loading…</div>
+                        </div>
+                    </div>
                 </section>`,
         },
     ];
@@ -246,6 +303,42 @@
             .replace(/"/g, '&quot;');
     }
 
+    const CALENDAR_MONTHS = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ];
+    const CALENDAR_WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+    function pad2(n) {
+        return String(n).padStart(2, "0");
+    }
+
+    function isIsoDate(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return false;
+        const d = new Date(`${value}T12:00:00`);
+        if (Number.isNaN(d.getTime())) return false;
+        return d.toISOString().slice(0, 10) === value;
+    }
+
+    function isoToDisplayDate(iso) {
+        if (!isIsoDate(iso)) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}/${m}/${y}`;
+    }
+
+    function displayToIsoDate(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        if (isIsoDate(raw)) return raw;
+        const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!m) return "";
+        const day = Number.parseInt(m[1], 10);
+        const month = Number.parseInt(m[2], 10);
+        const year = Number.parseInt(m[3], 10);
+        const iso = `${year}-${pad2(month)}-${pad2(day)}`;
+        return isIsoDate(iso) ? iso : "";
+    }
+
     function getSessionId() {
         let id = store.get(STORAGE.sessionId);
         if (!id) {
@@ -253,6 +346,23 @@
             store.set(STORAGE.sessionId, id);
         }
         return id;
+    }
+
+    function normalizeText(value) {
+        return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+    }
+
+    function stableStringify(value) {
+        if (value === null || typeof value !== "object") return JSON.stringify(value);
+        if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+        const keys = Object.keys(value).sort();
+        return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+    }
+
+    function getChartSignature(originalQuery, chartConfig) {
+        const query = normalizeText(originalQuery);
+        const normalizedConfig = stableStringify(chartConfig && typeof chartConfig === "object" ? chartConfig : {});
+        return `${query}::${normalizedConfig}`;
     }
 
     function parseHashRoute() {
@@ -367,6 +477,27 @@
             this._talkAbortController = null;
             this._talkStreamBubble = null;
             this._talkLastUserMsgEl = null;
+            this._savedChartSignatures = new Set();
+            this._savedChartsLoadedPromise = null;
+            this._calendarRoot = null;
+            this._calendarInput = null;
+            this._calendarMonth = 0;
+            this._calendarYear = 0;
+            this._pickerSeq = 0;
+            this._pickerRoots = new Set();
+            this._pickerPointerBound = false;
+            this._onPickerPointerDown = (e) => {
+                this._pickerRoots.forEach((root) => {
+                    if (!root.isConnected) {
+                        this._pickerRoots.delete(root);
+                        return;
+                    }
+                    if (!root.contains(e.target)) {
+                        root.classList.remove("is-open");
+                        root.querySelector(".ux-picker__button")?.setAttribute("aria-expanded", "false");
+                    }
+                });
+            };
             try {
                 const raw = store.get(STORAGE.talkMessages);
                 if (raw) {
@@ -473,6 +604,10 @@
             panel.style.right = "auto";
         }
 
+        focusActiveAccountOption() {
+            this.accountOptions?.find((o) => o.classList.contains("is-active"))?.focus({ preventScroll: true });
+        }
+
         scheduleAccountPanelPlacement() {
             const dock = this.accountDock;
             const panel = this.accountPanel;
@@ -486,6 +621,7 @@
             if (!this.appLayout?.classList.contains("app-layout--sidebar-expanded")) {
                 panel.classList.remove("account-dock__panel--placed");
                 this.positionAccountPanel();
+                requestAnimationFrame(() => this.focusActiveAccountOption());
                 return;
             }
             panel.classList.remove("account-dock__panel--placed");
@@ -493,19 +629,25 @@
                 requestAnimationFrame(() => {
                     this.positionAccountPanel();
                     panel.classList.add("account-dock__panel--placed");
+                    this.focusActiveAccountOption();
                 });
             });
         }
 
         buildSidebar() {
-            this.sidebarNav.innerHTML = routes
-                .map(
-                    (r) => `
-                <button type="button" class="sidebar-item" data-route="${r.id}" aria-label="${r.navLabel}" title="${r.navLabel}">
+            const account = this.state.account;
+            const visibleRoutes = account === "Admin"
+                ? routes
+                : routes.filter((r) => r.id === "pre-approval");
+            this.sidebarNav.innerHTML = visibleRoutes
+                .map((r) => {
+                    const label = (account !== "Admin" && r.johnLabel) ? r.johnLabel : r.navLabel;
+                    return `
+                <button type="button" class="sidebar-item" data-route="${r.id}" aria-label="${label}" title="${label}">
                     ${icons[r.id] ?? ""}
-                    <span class="sidebar-item__label" aria-hidden="true">${r.navLabel}</span>
-                </button>`
-                )
+                    <span class="sidebar-item__label" aria-hidden="true">${label}</span>
+                </button>`;
+                })
                 .join("");
             this.sidebarItems = Array.from(this.sidebarNav.querySelectorAll(".sidebar-item"));
             this.sidebarItems.forEach((btn) => {
@@ -544,10 +686,22 @@
                 if (this.accountDock?.open) {
                     this.positionAccountPanel();
                 }
+                if (this._calendarRoot?.classList.contains("is-open")) {
+                    this.positionCalendarPopup();
+                }
             });
         }
 
         onDocPointerDown(event) {
+            const calendarOpen = this._calendarRoot?.classList.contains("is-open");
+            if (calendarOpen) {
+                const target = event.target;
+                const inCalendar = this._calendarRoot.contains(target);
+                const inInput = this._calendarInput?.contains?.(target) || this._calendarInput === target;
+                if (!inCalendar && !inInput) {
+                    this.closeCalendarPopup();
+                }
+            }
             if (!this.accountDock?.open) {
                 return;
             }
@@ -561,6 +715,7 @@
             if (event.key !== "Escape") {
                 return;
             }
+            this.closeCalendarPopup();
             this.accountDock?.removeAttribute("open");
         }
 
@@ -569,7 +724,17 @@
             this.state.account = next;
             store.set(STORAGE.account, next);
             this.syncAccountUi();
+            this.buildSidebar();
             this.accountDock.removeAttribute("open");
+            if (next !== "Admin" && this.state.currentRoute !== "pre-approval") {
+                this.navigate("pre-approval", { replace: true });
+            } else {
+                const route = routeById[this.state.currentRoute];
+                if (route) {
+                    this.syncSidebar();
+                    this.renderRoute(route, false);
+                }
+            }
         }
 
         syncAccountUi() {
@@ -627,6 +792,10 @@
                 window.history.replaceState(null, "", `#/${id}`);
             }
             const route = routeById[id];
+            if (this.state.account !== "Admin" && route.id !== "pre-approval") {
+                this.navigate("pre-approval", { replace: true });
+                return;
+            }
             this.state.currentRoute = route.id;
             store.set(STORAGE.route, route.id);
             document.title = `${route.title} · ${APP_NAME}`;
@@ -643,6 +812,7 @@
         }
 
         async renderRoute(route, isInitial) {
+            this.closeCalendarPopup();
             // Abort any in-flight talk request on route change
             if (this._talkAbortController) {
                 this._talkAbortController.abort();
@@ -701,17 +871,85 @@
             return msg;
         }
 
-        appendChart(thread, config) {
+        appendChart(thread, config, originalQuery = "", aiResponse = "") {
+            if (!config || typeof ApexCharts === "undefined") return null;
+            const signature = getChartSignature(originalQuery || config.title?.text || "", config);
             const wrapper = document.createElement("div");
-            wrapper.className = "msg msg--ai";
+            wrapper.className = "msg msg--ai msg--chart-wrap";
+
+            const card = document.createElement("div");
+            card.className = "msg__chart";
             const chartEl = document.createElement("div");
-            chartEl.className = "msg__chart";
-            wrapper.appendChild(chartEl);
+            card.appendChild(chartEl);
+
+            // Button is a sibling of msg__chart — outside ApexCharts' DOM entirely
+            // so its pointer events can never be swallowed by ApexCharts' SVG overlay
+            const saveBtn = document.createElement("button");
+            saveBtn.type = "button";
+            saveBtn.className = "chart-save-btn";
+            saveBtn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+            this._applyChartSaveButtonState(saveBtn, false);
+            this._ensureSavedChartsIndex().then(() => {
+                if (!saveBtn.isConnected) return;
+                this._applyChartSaveButtonState(saveBtn, this._savedChartSignatures.has(signature));
+            });
+
+            saveBtn.addEventListener("click", async () => {
+                if (saveBtn.classList.contains("chart-save-btn--saving")) return;
+                saveBtn.classList.add("chart-save-btn--saving");
+                try {
+                    await this._ensureSavedChartsIndex();
+                    const alreadySaved = this._savedChartSignatures.has(signature);
+                    const method = alreadySaved ? "DELETE" : "POST";
+                    const res = await fetch("/api/chat/saved-charts", {
+                        method,
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            title: config.title?.text || "Saved Chart",
+                            original_query: originalQuery || config.title?.text || "Saved Chart",
+                            chart_config_json: JSON.stringify(config),
+                            ai_response: aiResponse || null,
+                        }),
+                    });
+                    if (!res.ok) throw new Error();
+                    saveBtn.classList.remove("chart-save-btn--saving");
+                    if (alreadySaved) {
+                        this._savedChartSignatures.delete(signature);
+                    } else {
+                        this._savedChartSignatures.add(signature);
+                    }
+                    this._applyChartSaveButtonState(saveBtn, !alreadySaved);
+                } catch {
+                    saveBtn.classList.remove("chart-save-btn--saving");
+                }
+            });
+
+            wrapper.appendChild(card);
+            wrapper.appendChild(saveBtn);
             thread.appendChild(wrapper);
-            wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
             requestAnimationFrame(() => {
-                const chart = new ApexCharts(chartEl, config);
-                chart.render();
+                try {
+                    const cs = getComputedStyle(document.documentElement);
+                    const get = (v, fb) => cs.getPropertyValue(v).trim() || fb;
+                    const ink = get("--color-ink", get("--color-text", "#0a0a0b"));
+                    const muted = get("--color-text-muted", "#8b939c");
+                    const border = get("--color-border", "#d2d8de");
+
+                    const themed = JSON.parse(JSON.stringify(config));
+                    if (themed.chart) themed.chart.foreColor = ink;
+                    themed.grid = { ...(themed.grid || {}), borderColor: border };
+                    if (themed.title?.style) themed.title.style.color = ink;
+                    if (themed.subtitle?.style) themed.subtitle.style.color = muted;
+                    if (themed.xaxis?.labels?.style) themed.xaxis.labels.style.colors = muted;
+                    if (themed.yaxis?.labels?.style) themed.yaxis.labels.style.colors = [muted];
+
+                    new ApexCharts(chartEl, themed).render();
+                    requestAnimationFrame(() => {
+                        wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    });
+                } catch {
+                    wrapper.remove();
+                }
             });
             return wrapper;
         }
@@ -722,6 +960,9 @@
             if (this.state.talkHasMessage) thread.style.overflowY = "auto";
             for (const msg of this.state.talkMessages) {
                 this.appendMessage(thread, msg.role, msg.text);
+                if (msg.role === "ai" && msg.chartConfig) {
+                    this.appendChart(thread, msg.chartConfig, msg.originalQuery || "");
+                }
             }
             thread.scrollTop = thread.scrollHeight;
             if (this.state.talkStreaming) {
@@ -790,6 +1031,41 @@
 
         _saveTalkMessages() {
             store.set(STORAGE.talkMessages, JSON.stringify(this.state.talkMessages));
+        }
+
+        _applyChartSaveButtonState(btn, isSaved) {
+            if (!btn) return;
+            btn.classList.toggle("chart-save-btn--saved", isSaved);
+            btn.setAttribute("aria-label", isSaved ? "Remove from Saved Visuals" : "Save to Saved Visuals");
+            btn.setAttribute("title", isSaved ? "Remove from Saved Visuals" : "Save to Saved Visuals");
+        }
+
+        async _ensureSavedChartsIndex(force = false) {
+            if (force) this._savedChartsLoadedPromise = null;
+            if (!this._savedChartsLoadedPromise) {
+                this._savedChartsLoadedPromise = fetch("/api/chat/saved-charts")
+                    .then((r) => {
+                        if (!r.ok) throw new Error("load failed");
+                        return r.json();
+                    })
+                    .then((charts) => {
+                        this._savedChartSignatures = new Set(
+                            (charts || []).map((chart) => {
+                                let parsedConfig = {};
+                                try {
+                                    parsedConfig = chart.chart_config_json ? JSON.parse(chart.chart_config_json) : {};
+                                } catch {}
+                                return getChartSignature(chart.original_query || chart.title || "", parsedConfig);
+                            })
+                        );
+                        return this._savedChartSignatures;
+                    })
+                    .catch(() => {
+                        this._savedChartSignatures = new Set();
+                        return this._savedChartSignatures;
+                    });
+            }
+            return this._savedChartsLoadedPromise;
         }
 
         _pinUserMessageForReply(thread, msgEl) {
@@ -911,15 +1187,12 @@
             const currentThread = currentView?.querySelector("#talkThread");
 
             if (finalText) {
-                this.state.talkMessages.push({ role: "ai", text: finalText });
+                this.state.talkMessages.push({ role: "ai", text: finalText, chartConfig: chartConfig || null, originalQuery: trimmed });
                 this._saveTalkMessages();
                 if (currentThread) {
                     this.appendMessage(currentThread, "ai", finalText);
+                    if (chartConfig) this.appendChart(currentThread, chartConfig, trimmed, finalText);
                 }
-            }
-
-            if (chartConfig && currentThread) {
-                this.appendChart(currentThread, chartConfig);
             }
 
             if (currentThread) {
@@ -942,6 +1215,7 @@
             this._talkStreamBubble = null;
             this._talkLastUserMsgEl = null;
             store.set(STORAGE.talkMessages, "[]");
+            fetch(`/api/chat/history/${getSessionId()}`, { method: "DELETE" }).catch(() => {});
             const page = view.querySelector(".talk-page");
             const thread = view.querySelector("#talkThread");
             page?.classList.remove("has-message");
@@ -965,30 +1239,136 @@
             }
             if (routeId === "saved-visuals") {
                 const grid = view.querySelector("#galleryGrid");
+                const dialog = view.querySelector("#chartDialog");
+                const dialogChart = view.querySelector("#chartDialogChart");
+                const dialogQuery = view.querySelector("#chartDialogQuery");
+                const dialogTs = view.querySelector("#chartDialogTs");
+                const dialogResponse = view.querySelector("#chartDialogResponse");
+
+                view.querySelector(".chart-dialog__close")?.addEventListener("click", () => dialog.close());
+                dialog?.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+
+                let activeDialogChart = null;
+
+                const applyTheme = (themed) => {
+                    const cs = getComputedStyle(document.documentElement);
+                    const get = (v, fb) => cs.getPropertyValue(v).trim() || fb;
+                    const ink = get("--color-ink", get("--color-text", "#0a0a0b"));
+                    const muted = get("--color-text-muted", "#8b939c");
+                    const border = get("--color-border", "#d2d8de");
+                    if (themed.chart) themed.chart.foreColor = ink;
+                    themed.grid = { ...(themed.grid || {}), borderColor: border };
+                    if (themed.title?.style) themed.title.style.color = ink;
+                    if (themed.subtitle?.style) themed.subtitle.style.color = muted;
+                    if (themed.xaxis?.labels?.style) themed.xaxis.labels.style.colors = muted;
+                    if (themed.yaxis?.labels?.style) themed.yaxis.labels.style.colors = [muted];
+                    return themed;
+                };
+
+                const openDialog = (chart) => {
+                    if (activeDialogChart) { try { activeDialogChart.destroy(); } catch {} activeDialogChart = null; }
+                    dialogChart.innerHTML = "";
+                    dialogQuery.textContent = chart.original_query || "";
+                    dialogTs.textContent = chart.created_at
+                        ? new Date(chart.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+                        : "";
+                    dialogResponse.textContent = chart.ai_response || "";
+                    dialogResponse.hidden = !chart.ai_response;
+                    dialog.showModal();
+                    requestAnimationFrame(() => {
+                        try {
+                            const config = JSON.parse(chart.chart_config_json);
+                            const themed = applyTheme(JSON.parse(JSON.stringify(config)));
+                            if (themed.chart) { themed.chart.height = 320; themed.chart.toolbar = { show: false }; }
+                            const chartEl = document.createElement("div");
+                            dialogChart.appendChild(chartEl);
+                            activeDialogChart = new ApexCharts(chartEl, themed);
+                            activeDialogChart.render();
+                        } catch {}
+                    });
+                };
+
                 fetch("/api/chat/saved-charts")
                     .then(r => r.json())
                     .then(charts => {
+                        this._savedChartSignatures = new Set(
+                            (charts || []).map((chart) => {
+                                let parsedConfig = {};
+                                try { parsedConfig = chart.chart_config_json ? JSON.parse(chart.chart_config_json) : {}; } catch {}
+                                return getChartSignature(chart.original_query || chart.title || "", parsedConfig);
+                            })
+                        );
+                        this._savedChartsLoadedPromise = Promise.resolve(this._savedChartSignatures);
                         if (!charts.length) {
                             grid.innerHTML = `<p class="gallery-empty">No saved charts yet. Save a chart from Talk to Data.</p>`;
                             return;
                         }
                         grid.innerHTML = "";
                         charts.forEach(chart => {
-                            const card = document.createElement("div");
-                            card.className = "gallery-card";
-                            card.innerHTML = `
-                                <p class="gallery-card__title">${escHtml(chart.title)}</p>
-                                <p class="gallery-card__query">${escHtml(chart.original_query)}</p>
-                                <div class="gallery-card__chart" id="chart-${chart.id}"></div>
-                                <p class="gallery-card__date">${new Date(chart.created_at).toLocaleDateString()}</p>
-                            `;
-                            grid.appendChild(card);
-                            try {
-                                const config = JSON.parse(chart.chart_config_json);
-                                requestAnimationFrame(() => {
-                                    new ApexCharts(card.querySelector(`#chart-${chart.id}`), config).render();
-                                });
-                            } catch {}
+                            let parsedConfig = {};
+                            try { parsedConfig = chart.chart_config_json ? JSON.parse(chart.chart_config_json) : {}; } catch {}
+                            const chartSignature = getChartSignature(chart.original_query || chart.title || "", parsedConfig);
+                            const thumb = document.createElement("div");
+                            thumb.className = "sv-thumb";
+                            thumb.setAttribute("role", "button");
+                            thumb.setAttribute("tabindex", "0");
+                            thumb.setAttribute("aria-label", chart.title || "Saved chart");
+                            const trashBtn = document.createElement("button");
+                            trashBtn.type = "button";
+                            trashBtn.className = "sv-thumb__trash";
+                            trashBtn.setAttribute("aria-label", "Delete saved visual");
+                            trashBtn.setAttribute("title", "Delete saved visual");
+                            trashBtn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4.6A1.6 1.6 0 0 1 9.6 3h4.8A1.6 1.6 0 0 1 16 4.6V6"/><path d="M6.8 6l.95 13.2A1.8 1.8 0 0 0 9.54 21h4.92a1.8 1.8 0 0 0 1.79-1.8L17.2 6"/><path d="M10 10v7"/><path d="M14 10v7"/></svg>`;
+                            const chartEl = document.createElement("div");
+                            chartEl.className = "sv-thumb__chart";
+                            thumb.appendChild(trashBtn);
+                            thumb.appendChild(chartEl);
+                            grid.appendChild(thumb);
+
+                            requestAnimationFrame(() => {
+                                try {
+                                    const config = JSON.parse(chart.chart_config_json);
+                                    const themed = applyTheme(JSON.parse(JSON.stringify(config)));
+                                    delete themed.title;
+                                    delete themed.subtitle;
+                                    if (themed.chart) { themed.chart.height = 160; themed.chart.toolbar = { show: false }; themed.chart.animations = { enabled: false }; }
+                                    if (themed.legend) themed.legend.show = false;
+                                    if (themed.dataLabels) themed.dataLabels.enabled = false;
+                                    new ApexCharts(chartEl, themed).render();
+                                } catch {}
+                            });
+
+                            const handleOpen = () => openDialog(chart);
+                            const handleDelete = async () => {
+                                if (trashBtn.disabled) return;
+                                trashBtn.disabled = true;
+                                try {
+                                    const res = await fetch("/api/chat/saved-charts", {
+                                        method: "DELETE",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            title: chart.title || "Saved Chart",
+                                            original_query: chart.original_query || chart.title || "Saved Chart",
+                                            chart_config_json: chart.chart_config_json,
+                                        }),
+                                    });
+                                    if (!res.ok) throw new Error("delete failed");
+                                    this._savedChartSignatures.delete(chartSignature);
+                                    thumb.remove();
+                                    if (!grid.querySelector(".sv-thumb")) {
+                                        grid.innerHTML = `<p class="gallery-empty">No saved charts yet. Save a chart from Talk to Data.</p>`;
+                                    }
+                                } catch {
+                                    trashBtn.disabled = false;
+                                }
+                            };
+                            trashBtn.addEventListener("click", (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDelete();
+                            });
+                            thumb.addEventListener("click", handleOpen);
+                            thumb.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleOpen(); } });
                         });
                     })
                     .catch(() => { grid.innerHTML = `<p class="gallery-empty">Failed to load charts.</p>`; });
@@ -996,12 +1376,15 @@
             }
             if (routeId === "pre-approval") {
                 if (this.state.account === "Admin") {
+                    let submissionsById = new Map();
+                    let activeApprovalReqToken = 0;
                     const loadSubmissions = (status) => {
                         const list = view.querySelector("#submissionsList");
                         list.innerHTML = "Loading…";
                         fetch(`/api/approvals?status=${status}`)
                             .then(r => r.json())
                             .then(subs => {
+                                submissionsById = new Map((subs || []).map((s) => [String(s.id), s]));
                                 if (!subs.length) {
                                     list.innerHTML = `<p class="empty-state">No ${status} requests.</p>`;
                                     return;
@@ -1009,9 +1392,9 @@
                                 list.innerHTML = subs.map(s => `
                                     <div class="submission-row" data-id="${s.id}">
                                         <div class="submission-row__info">
-                                            <span class="submission-row__name">${s.parsed_name}</span>
-                                            <span class="submission-row__dept">${s.parsed_department}</span>
-                                            <span class="submission-row__purpose">${s.parsed_purpose}</span>
+                                            <span class="submission-row__name">${escHtml(s.parsed_name || "Unknown")}</span>
+                                            <span class="submission-row__dept">${escHtml(s.parsed_department || "Unknown")}</span>
+                                            <span class="submission-row__purpose">${escHtml(s.parsed_purpose || "No purpose provided")}</span>
                                         </div>
                                         <div class="submission-row__meta">
                                             <span class="submission-row__amount">$${Number(s.parsed_amount).toFixed(2)}</span>
@@ -1026,31 +1409,44 @@
                             .catch(() => { list.innerHTML = `<p class="empty-state">Failed to load submissions.</p>`; });
                     };
 
+                    const approvalPanelEmpty = `<div class="approval-panel__empty">Click a request and a recommendation will appear here.</div>`;
+                    this.enhanceSelectControl(view, "#statusFilter");
+
                     loadSubmissions("pending");
 
-                    view.querySelector("#statusFilter")?.addEventListener("change", e => loadSubmissions(e.target.value));
+                    view.querySelector("#statusFilter")?.addEventListener("change", e => {
+                        activeApprovalReqToken++;
+                        const panelEl = view.querySelector("#approvalPanel");
+                        if (panelEl) panelEl.innerHTML = approvalPanelEmpty;
+                        loadSubmissions(e.target.value);
+                    });
 
                     const openApprovalPanel = async (id) => {
                         const panel = view.querySelector("#approvalPanel");
-                        panel.classList.remove("hidden");
-                        panel.innerHTML = `<div class="approval-panel__loading">Generating AI recommendation…</div>`;
-                        panel.scrollIntoView({ behavior: "smooth" });
-                        try {
-                            const res = await fetch(`/api/approvals/${id}`);
-                            if (!res.ok) throw new Error("fetch failed");
-                            const data = await res.json();
+                        const submission = submissionsById.get(String(id)) || {};
+                        const headerName = submission.parsed_name || "Unknown";
+                        const headerPurpose = submission.parsed_purpose || "";
+                        const headerAmount = Number(submission.parsed_amount || 0).toFixed(2);
+                        const reqToken = ++activeApprovalReqToken;
+                        let recommendationText = "Generating recommendation… You can still approve or deny now.";
+                        let isRecommendationLoading = true;
+
+                        const renderPanel = () => {
+                            const recommendationCls = isRecommendationLoading
+                                ? "approval-panel__recommendation approval-panel__recommendation--unified approval-panel__recommendation--loading"
+                                : "approval-panel__recommendation approval-panel__recommendation--unified";
+                            const recommendationHtml = isRecommendationLoading
+                                ? `<p class="approval-panel__loading-copy">Generating recommendation<span class="approval-panel__loading-dots" aria-hidden="true"></span></p>`
+                                : `<p>${escHtml(recommendationText)}</p>`;
                             panel.innerHTML = `
                                 <div class="approval-panel__header">
-                                    <h3>${data.parsed_name} — $${Number(data.parsed_amount).toFixed(2)}</h3>
-                                    <p class="approval-panel__purpose">${data.parsed_purpose}</p>
+                                    <h3>${escHtml(headerName)} — $${headerAmount}</h3>
+                                    <p class="approval-panel__purpose">${escHtml(headerPurpose)}</p>
                                 </div>
-                                <div class="approval-panel__recommendation">
-                                    <h4>AI Analysis</h4>
-                                    <p>${data.recommendation}</p>
+                                <div class="${recommendationCls}">
+                                    ${recommendationHtml}
                                 </div>
-                                <div class="approval-panel__actions">
-                                    <label class="approval-panel__note-label">Decision Note</label>
-                                    <textarea id="decisionNote" class="approval-panel__note">${data.shortNote || ''}</textarea>
+                                <div class="approval-panel__actions approval-panel__actions--decide">
                                     <div class="approval-panel__btns">
                                         <button class="btn btn--approve" data-action="approved" data-id="${id}">✓ Approve</button>
                                         <button class="btn btn--deny"    data-action="denied"   data-id="${id}">✗ Deny</button>
@@ -1059,68 +1455,133 @@
                             `;
                             panel.querySelectorAll("[data-action]").forEach(btn => {
                                 btn.addEventListener("click", async () => {
-                                    const note = panel.querySelector("#decisionNote").value;
-                                    btn.disabled = true;
-                                    await fetch(`/api/approvals/${id}/decide`, {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ action: btn.dataset.action, note }),
-                                    });
-                                    panel.classList.add("hidden");
-                                    loadSubmissions(view.querySelector("#statusFilter").value);
+                                    const action = btn.dataset.action;
+                                    const approveBtn = panel.querySelector('[data-action="approved"]');
+                                    const denyBtn = panel.querySelector('[data-action="denied"]');
+                                    if (approveBtn) approveBtn.disabled = true;
+                                    if (denyBtn) denyBtn.disabled = true;
+                                    const note =
+                                        isRecommendationLoading || /Generating recommendation/i.test(recommendationText)
+                                            ? null
+                                            : recommendationText;
+                                    try {
+                                        await fetch(`/api/approvals/${id}/decide`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ action, note }),
+                                        });
+                                        if (reqToken === activeApprovalReqToken) {
+                                            panel.innerHTML = approvalPanelEmpty;
+                                            loadSubmissions(view.querySelector("#statusFilter").value);
+                                        }
+                                    } catch {
+                                        if (approveBtn) approveBtn.disabled = false;
+                                        if (denyBtn) denyBtn.disabled = false;
+                                    }
                                 });
                             });
+                        };
+
+                        renderPanel();
+                        panel.scrollIntoView({ behavior: "smooth" });
+                        try {
+                            const res = await fetch(`/api/approvals/${id}`);
+                            if (!res.ok) throw new Error("fetch failed");
+                            const data = await res.json();
+                            if (reqToken !== activeApprovalReqToken) return;
+                            recommendationText = data.recommendation || "No recommendation generated.";
+                            isRecommendationLoading = false;
+                            renderPanel();
                         } catch {
-                            panel.innerHTML = `<p class="empty-state">Failed to load recommendation.</p>`;
+                            if (reqToken !== activeApprovalReqToken) return;
+                            recommendationText = "Recommendation unavailable right now. You can still approve or deny.";
+                            isRecommendationLoading = false;
+                            renderPanel();
                         }
                     };
 
                 } else {
-                    // John's view
-                    fetch("/api/approvals?status=all")
-                        .then(r => r.json())
-                        .then(subs => {
-                            const body = view.querySelector("#mySubmissionsBody");
-                            if (!subs.length) { body.innerHTML = `<p class="empty-state">No requests yet.</p>`; return; }
-                            body.innerHTML = subs.map(s => `
-                                <div class="submission-row">
-                                    <div class="submission-row__info">
-                                        <span class="submission-row__purpose">${s.parsed_purpose}</span>
+                    // ── John view ──────────────────────────────────────────
+                    const loadMyRequests = () => {
+                        const body = view.querySelector("#mySubmissionsBody");
+                        const badge = view.querySelector("#myRequestsBadge");
+                        body.innerHTML = `<div class="sr-skeleton"></div><div class="sr-skeleton"></div>`;
+                        fetch("/api/approvals?status=all")
+                            .then(r => r.json())
+                            .then(subs => {
+                                const mine = subs.filter(s =>
+                                    (s.parsed_name || "").toLowerCase().includes("john")
+                                );
+                                const pending = mine.filter(s => s.status === "pending").length;
+                                if (pending > 0) {
+                                    badge.textContent = `${pending} pending`;
+                                    badge.hidden = false;
+                                } else {
+                                    badge.hidden = true;
+                                }
+                                if (!mine.length) {
+                                    body.innerHTML = `<p class="empty-state">No requests yet — submit your first one above.</p>`;
+                                    return;
+                                }
+                                body.innerHTML = mine.map(s => `
+                                    <div class="submission-row sr-row">
+                                        <div class="submission-row__info">
+                                            <span class="submission-row__purpose">${escHtml(s.parsed_purpose || "Expense request")}</span>
+                                            <span class="submission-row__date">${new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                                        </div>
+                                        <div class="submission-row__meta">
+                                            <span class="submission-row__amount">$${Number(s.parsed_amount || 0).toFixed(2)}</span>
+                                            <span class="badge badge--${s.status}">${s.status}</span>
+                                        </div>
                                     </div>
-                                    <div class="submission-row__meta">
-                                        <span class="submission-row__amount">$${Number(s.parsed_amount).toFixed(2)}</span>
-                                        <span class="badge badge--${s.status}">${s.status}</span>
-                                        <span class="submission-row__date">${new Date(s.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            `).join("");
-                        })
-                        .catch(() => {});
+                                `).join("");
+                            })
+                            .catch(() => {
+                                body.innerHTML = `<p class="empty-state">Failed to load requests.</p>`;
+                            });
+                    };
+
+                    loadMyRequests();
+
+                    const textarea = view.querySelector("#requestText");
+                    const charCount = view.querySelector("#requestCharCount");
+                    textarea?.addEventListener("input", () => {
+                        const len = textarea.value.length;
+                        charCount.textContent = `${len} / 500`;
+                        charCount.classList.toggle("sr-charcount--warn", len > 450);
+                    });
 
                     view.querySelector("#submitRequestForm")?.addEventListener("submit", async (e) => {
                         e.preventDefault();
-                        const text = view.querySelector("#requestText").value.trim();
+                        const text = textarea.value.trim();
                         if (!text) return;
                         const btn = e.target.querySelector("button[type=submit]");
+                        const feedback = view.querySelector("#submitFeedback");
                         btn.disabled = true;
                         btn.textContent = "Submitting…";
+                        feedback.hidden = true;
                         try {
                             const res = await fetch("/api/approvals", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ raw_request: text }),
+                                body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
                             });
                             if (!res.ok) throw new Error("submit failed");
-                            view.querySelector("#requestText").value = "";
-                            btn.textContent = "Submitted!";
-                            setTimeout(() => {
-                                btn.disabled = false;
-                                btn.textContent = "Submit Request";
-                                this.navigate("pre-approval");
-                            }, 1500);
-                        } catch {
+                            textarea.value = "";
+                            charCount.textContent = "0 / 500";
+                            feedback.textContent = "✓ Request submitted — finance will be notified.";
+                            feedback.className = "sr-feedback sr-feedback--success";
+                            feedback.hidden = false;
+                            btn.textContent = "Submit Request";
                             btn.disabled = false;
-                            btn.textContent = "Failed — Retry";
+                            loadMyRequests();
+                            setTimeout(() => { feedback.hidden = true; }, 4000);
+                        } catch {
+                            feedback.textContent = "Something went wrong. Please try again.";
+                            feedback.className = "sr-feedback sr-feedback--error";
+                            feedback.hidden = false;
+                            btn.disabled = false;
+                            btn.textContent = "Submit Request";
                         }
                     });
                 }
@@ -1136,15 +1597,15 @@
                             list.innerHTML = reports.map(r => `
                                 <div class="report-card">
                                     <div class="report-card__header">
-                                        <span class="report-card__title">${r.title}</span>
+                                        <span class="report-card__title">${escHtml(r.title || "Expense Report")}</span>
                                         <span class="badge badge--${r.status}">${r.status}</span>
                                     </div>
                                     <div class="report-card__meta">
-                                        <span>${r.emp_name} · ${r.emp_dept}</span>
+                                        <span>${escHtml(r.emp_name || "Unknown")} · ${escHtml(r.emp_dept || "Unknown")}</span>
                                         <span>${r.date_range_start} → ${r.date_range_end}</span>
                                         <span>${r.item_count} transactions · <strong>$${Number(r.total_amount).toFixed(2)}</strong></span>
                                     </div>
-                                    <p class="report-card__policy">${r.policy_summary || ""}</p>
+                                    <p class="report-card__policy">${escHtml(r.policy_summary || "")}</p>
                                     ${r.status === "pending" && this.state.account === "Admin" ? `
                                     <div class="report-card__actions">
                                         <button class="btn btn--approve" data-report="${r.id}" data-action="approved">✓ Approve</button>
@@ -1168,6 +1629,7 @@
                 loadReports();
 
                 if (this.state.account === "Admin") {
+                    const refreshEmployeePicker = this.enhanceSelectControl(view, "#reportEmployee");
                     fetch("/api/employees")
                         .then(r => r.json())
                         .then(employees => {
@@ -1179,20 +1641,27 @@
                                 opt.textContent = `${e.name} (${e.department})`;
                                 sel.appendChild(opt);
                             });
+                            refreshEmployeePicker?.();
                         });
 
                     const endDate = new Date().toISOString().split("T")[0];
                     const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
                     const startInput = view.querySelector("#reportStart");
                     const endInput = view.querySelector("#reportEnd");
-                    if (startInput) startInput.value = startDate;
-                    if (endInput) endInput.value = endDate;
+                    if (startInput) {
+                        this.enhanceDateInput(startInput);
+                        this.setDateInputValue(startInput, startDate);
+                    }
+                    if (endInput) {
+                        this.enhanceDateInput(endInput);
+                        this.setDateInputValue(endInput, endDate);
+                    }
 
                     view.querySelector("#generateBtn")?.addEventListener("click", async () => {
                         const empSel = view.querySelector("#reportEmployee");
                         const empId = empSel?.value;
-                        const start = view.querySelector("#reportStart")?.value;
-                        const end = view.querySelector("#reportEnd")?.value;
+                        const start = this.getDateInputValue(view.querySelector("#reportStart"));
+                        const end = this.getDateInputValue(view.querySelector("#reportEnd"));
                         if (!empId || !start || !end) { alert("Please select an employee and date range."); return; }
                         const btn = view.querySelector("#generateBtn");
                         btn.disabled = true;
@@ -1249,18 +1718,22 @@
                         view.querySelector(".talk-page")?.classList.add("has-message");
                         if (thread) thread.style.overflowY = "auto";
                     }
+                    let lastUserQuery = "";
                     for (const msg of history) {
                         if (msg.role === "user") {
+                            lastUserQuery = msg.content;
                             self.appendMessage(thread, "user", msg.content);
                         } else {
-                            const chartMatch = msg.content.match(/```apexcharts\s*([\s\S]*?)```/);
-                            const cleanText = msg.content.replace(/```apexcharts[\s\S]*?```/g, "").trim();
-                            self.appendMessage(thread, "ai", cleanText);
-                            if (chartMatch) {
-                                try {
-                                    self.appendChart(thread, JSON.parse(chartMatch[1].trim()));
-                                } catch {}
+                            self.appendMessage(thread, "ai", msg.content);
+                            let chartCfg = null;
+                            if (msg.chart_config) {
+                                try { chartCfg = JSON.parse(msg.chart_config); } catch {}
+                            } else {
+                                // Legacy fallback: extract from old markdown code block format
+                                const match = msg.content.match(/```apexcharts\s*([\s\S]*?)```/);
+                                if (match) try { chartCfg = JSON.parse(match[1].trim()); } catch {}
                             }
+                            if (chartCfg) self.appendChart(thread, chartCfg, lastUserQuery);
                         }
                     }
                 })
@@ -1284,6 +1757,350 @@
                 if (this.state.talkStreaming) return;
                 form.requestSubmit();
             });
+        }
+
+
+        enhanceSelectControl(view, selector) {
+            const select = view.querySelector(selector);
+            if (!select) return null;
+
+            if (typeof select._uxPickerRefresh === "function") {
+                select._uxPickerRefresh();
+                return select._uxPickerRefresh;
+            }
+
+            this._pickerSeq += 1;
+            const listId = `ux-picker-list-${this._pickerSeq}`;
+            const wrapper = document.createElement("div");
+            wrapper.className = "ux-picker";
+            wrapper.dataset.selectId = select.id || "";
+
+            select.classList.add("ux-select-native");
+            select.insertAdjacentElement("afterend", wrapper);
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "ux-picker__button";
+            button.setAttribute("aria-haspopup", "listbox");
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("aria-controls", listId);
+
+            const buttonLabel = document.createElement("span");
+            buttonLabel.className = "ux-picker__label";
+            button.appendChild(buttonLabel);
+
+            const popover = document.createElement("div");
+            popover.className = "ux-picker__popover";
+            const list = document.createElement("ul");
+            list.className = "ux-picker__list";
+            list.id = listId;
+            list.setAttribute("role", "listbox");
+            popover.appendChild(list);
+
+            wrapper.append(select, button, popover);
+            this._pickerRoots.add(wrapper);
+            if (!this._pickerPointerBound) {
+                document.addEventListener("pointerdown", this._onPickerPointerDown);
+                this._pickerPointerBound = true;
+            }
+
+            let optionButtons = [];
+
+            const setOpen = (open) => {
+                wrapper.classList.toggle("is-open", open);
+                button.setAttribute("aria-expanded", String(open));
+            };
+
+            const applyValue = (value, index) => {
+                if (Number.isInteger(index) && select.selectedIndex !== index) {
+                    select.selectedIndex = index;
+                } else if (select.value !== value) {
+                    select.value = value;
+                } else {
+                    return;
+                }
+                select.dispatchEvent(new Event("input", { bubbles: true }));
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            };
+
+            const syncSelectedState = () => {
+                const selected = select.options[select.selectedIndex] ?? select.options[0];
+                buttonLabel.textContent = selected?.textContent?.trim() || "Select option";
+                optionButtons.forEach((optBtn) => {
+                    const active = optBtn.dataset.value === select.value;
+                    optBtn.classList.toggle("is-selected", active);
+                    optBtn.setAttribute("aria-selected", String(active));
+                });
+            };
+
+            const focusSelectedOrFirst = () => {
+                const selectedBtn = optionButtons.find((btn) => btn.dataset.value === select.value);
+                (selectedBtn ?? optionButtons[0])?.focus();
+            };
+
+            const buildOptions = () => {
+                const options = Array.from(select.options);
+                list.innerHTML = options.map((opt, i) => `
+                    <li class="ux-picker__item" role="presentation">
+                        <button
+                            type="button"
+                            role="option"
+                            class="ux-picker__option"
+                            data-value="${escHtml(opt.value)}"
+                            data-index="${i}"
+                            aria-selected="false"
+                        >${escHtml(opt.textContent || "")}</button>
+                    </li>
+                `).join("");
+                optionButtons = Array.from(list.querySelectorAll(".ux-picker__option"));
+                optionButtons.forEach((optBtn) => {
+                    optBtn.addEventListener("click", () => {
+                        const idx = Number.parseInt(optBtn.dataset.index ?? "", 10);
+                        applyValue(optBtn.dataset.value ?? "", Number.isNaN(idx) ? undefined : idx);
+                        syncSelectedState();
+                        setOpen(false);
+                        button.focus({ preventScroll: true });
+                    });
+                });
+                syncSelectedState();
+            };
+
+            button.addEventListener("click", () => {
+                const open = !wrapper.classList.contains("is-open");
+                setOpen(open);
+                if (open) focusSelectedOrFirst();
+            });
+
+            button.addEventListener("keydown", (e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setOpen(true);
+                    focusSelectedOrFirst();
+                }
+            });
+
+            list.addEventListener("keydown", (e) => {
+                if (!optionButtons.length) return;
+                const idx = optionButtons.indexOf(document.activeElement);
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    setOpen(false);
+                    button.focus({ preventScroll: true });
+                    return;
+                }
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const nextIdx = idx < 0 ? 0 : Math.min(idx + 1, optionButtons.length - 1);
+                    optionButtons[nextIdx]?.focus();
+                    return;
+                }
+                if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prevIdx = idx < 0 ? optionButtons.length - 1 : Math.max(idx - 1, 0);
+                    optionButtons[prevIdx]?.focus();
+                    return;
+                }
+                if (e.key === "Home") {
+                    e.preventDefault();
+                    optionButtons[0]?.focus();
+                    return;
+                }
+                if (e.key === "End") {
+                    e.preventDefault();
+                    optionButtons[optionButtons.length - 1]?.focus();
+                    return;
+                }
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    const active = document.activeElement;
+                    if (active?.classList.contains("ux-picker__option")) {
+                        active.click();
+                    }
+                }
+            });
+
+            select.addEventListener("change", syncSelectedState);
+            const refresh = () => {
+                buildOptions();
+            };
+            select._uxPickerRefresh = refresh;
+            buildOptions();
+            return refresh;
+        }
+
+        enhanceDateInput(input) {
+            if (!input || input.dataset.uxCalendarBound === "1") return;
+            input.dataset.uxCalendarBound = "1";
+            input.readOnly = true;
+
+            const open = () => this.openCalendarPopup(input);
+            input.addEventListener("click", open);
+            input.addEventListener("focus", open);
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+                    e.preventDefault();
+                    open();
+                }
+            });
+        }
+
+        setDateInputValue(input, iso) {
+            if (!input) return;
+            const safe = isIsoDate(iso) ? iso : "";
+            input.dataset.isoDate = safe;
+            input.value = safe ? isoToDisplayDate(safe) : "";
+        }
+
+        getDateInputValue(input) {
+            if (!input) return "";
+            const ds = input.dataset.isoDate || "";
+            if (isIsoDate(ds)) return ds;
+            const parsed = displayToIsoDate(input.value);
+            if (parsed) {
+                this.setDateInputValue(input, parsed);
+                return parsed;
+            }
+            return "";
+        }
+
+        ensureCalendarRoot() {
+            if (this._calendarRoot?.isConnected) return;
+            const root = document.createElement("div");
+            root.className = "ux-calendar";
+            root.innerHTML = `
+                <div class="ux-calendar__header">
+                    <button type="button" class="ux-calendar__nav" data-cal-nav="-1" aria-label="Previous month">‹</button>
+                    <div class="ux-calendar__title" id="uxCalendarTitle"></div>
+                    <button type="button" class="ux-calendar__nav" data-cal-nav="1" aria-label="Next month">›</button>
+                </div>
+                <div class="ux-calendar__weekdays"></div>
+                <div class="ux-calendar__grid"></div>
+                <div class="ux-calendar__foot">
+                    <button type="button" class="ux-calendar__action" data-cal-action="clear">Clear</button>
+                    <button type="button" class="ux-calendar__action" data-cal-action="today">Today</button>
+                </div>
+            `;
+            const weekdays = root.querySelector(".ux-calendar__weekdays");
+            weekdays.innerHTML = CALENDAR_WEEKDAYS.map((d) => `<span>${d}</span>`).join("");
+
+            root.addEventListener("click", (e) => {
+                const nav = e.target.closest("[data-cal-nav]");
+                if (nav) {
+                    const delta = Number.parseInt(nav.dataset.calNav, 10) || 0;
+                    const d = new Date(this._calendarYear, this._calendarMonth + delta, 1);
+                    this._calendarYear = d.getFullYear();
+                    this._calendarMonth = d.getMonth();
+                    this.renderCalendarPopup();
+                    this.positionCalendarPopup();
+                    return;
+                }
+                const dayBtn = e.target.closest("[data-cal-iso]");
+                if (dayBtn && this._calendarInput) {
+                    this.setDateInputValue(this._calendarInput, dayBtn.dataset.calIso || "");
+                    this.closeCalendarPopup();
+                    this._calendarInput.focus({ preventScroll: true });
+                    return;
+                }
+                const action = e.target.closest("[data-cal-action]")?.dataset.calAction;
+                if (!action || !this._calendarInput) return;
+                if (action === "clear") {
+                    this.setDateInputValue(this._calendarInput, "");
+                    this.closeCalendarPopup();
+                    return;
+                }
+                if (action === "today") {
+                    const todayIso = new Date().toISOString().slice(0, 10);
+                    this.setDateInputValue(this._calendarInput, todayIso);
+                    this.closeCalendarPopup();
+                }
+            });
+
+            document.body.appendChild(root);
+            this._calendarRoot = root;
+        }
+
+        openCalendarPopup(input) {
+            if (!input) return;
+            this.ensureCalendarRoot();
+            this._calendarInput = input;
+            const baseIso = this.getDateInputValue(input) || new Date().toISOString().slice(0, 10);
+            const base = new Date(`${baseIso}T12:00:00`);
+            this._calendarYear = base.getFullYear();
+            this._calendarMonth = base.getMonth();
+            this.renderCalendarPopup();
+            this._calendarRoot.classList.add("is-open");
+            this.positionCalendarPopup();
+        }
+
+        closeCalendarPopup() {
+            if (!this._calendarRoot) return;
+            this._calendarRoot.classList.remove("is-open");
+        }
+
+        positionCalendarPopup() {
+            if (!this._calendarRoot || !this._calendarInput) return;
+            const inputRect = this._calendarInput.getBoundingClientRect();
+            const rootRect = this._calendarRoot.getBoundingClientRect();
+            const margin = 8;
+            let left = inputRect.left;
+            let top = inputRect.bottom + 6;
+
+            if (left + rootRect.width > window.innerWidth - margin) {
+                left = window.innerWidth - rootRect.width - margin;
+            }
+            if (left < margin) left = margin;
+
+            const spaceBelow = window.innerHeight - inputRect.bottom;
+            const spaceAbove = inputRect.top;
+            if (spaceBelow < rootRect.height + 10 && spaceAbove > rootRect.height + 10) {
+                top = inputRect.top - rootRect.height - 6;
+            }
+
+            this._calendarRoot.style.left = `${Math.round(left)}px`;
+            this._calendarRoot.style.top = `${Math.round(top)}px`;
+        }
+
+        renderCalendarPopup() {
+            if (!this._calendarRoot || !this._calendarInput) return;
+            const title = this._calendarRoot.querySelector("#uxCalendarTitle");
+            const grid = this._calendarRoot.querySelector(".ux-calendar__grid");
+            const selectedIso = this.getDateInputValue(this._calendarInput);
+            const todayIso = new Date().toISOString().slice(0, 10);
+
+            title.textContent = `${CALENDAR_MONTHS[this._calendarMonth]} ${this._calendarYear}`;
+
+            const first = new Date(this._calendarYear, this._calendarMonth, 1);
+            const firstWeekday = first.getDay();
+            const daysInMonth = new Date(this._calendarYear, this._calendarMonth + 1, 0).getDate();
+            const daysInPrev = new Date(this._calendarYear, this._calendarMonth, 0).getDate();
+            const cells = [];
+
+            for (let i = firstWeekday - 1; i >= 0; i -= 1) {
+                const day = daysInPrev - i;
+                const d = new Date(this._calendarYear, this._calendarMonth - 1, day);
+                const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+                cells.push({ iso, day, outside: true });
+            }
+            for (let day = 1; day <= daysInMonth; day += 1) {
+                const iso = `${this._calendarYear}-${pad2(this._calendarMonth + 1)}-${pad2(day)}`;
+                cells.push({ iso, day, outside: false });
+            }
+            while (cells.length < 42) {
+                const day = cells.length - (firstWeekday + daysInMonth) + 1;
+                const d = new Date(this._calendarYear, this._calendarMonth + 1, day);
+                const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+                cells.push({ iso, day, outside: true });
+            }
+
+            grid.innerHTML = cells.map((c) => {
+                const cls = [
+                    "ux-calendar__day",
+                    c.outside ? "is-outside" : "",
+                    c.iso === selectedIso ? "is-selected" : "",
+                    c.iso === todayIso ? "is-today" : "",
+                ].filter(Boolean).join(" ");
+                return `<button type="button" class="${cls}" data-cal-iso="${c.iso}" aria-label="${c.iso}">${c.day}</button>`;
+            }).join("");
         }
 
 
@@ -1328,6 +2145,7 @@
                 inp.className = "rule-row__input";
                 inp.contentEditable = "plaintext-only";
                 inp.setAttribute("role", "textbox");
+                inp.setAttribute("spellcheck", "false");
                 inp.setAttribute("aria-label", `Rule ${dataIndex + 1}`);
                 inp.setAttribute("aria-multiline", "true");
                 inp.textContent = rulesData[dataIndex] ?? "";
@@ -1406,7 +2224,6 @@
         }
 
         _attachPolicyViolations(view) {
-            const self = this;
             const cs = {
                 subtab: "violations",
                 vSort: { key: "date", dir: "desc" },
@@ -1785,6 +2602,8 @@
                 const noteArea = document.createElement("textarea");
                 noteArea.id = "dismiss-note-input";
                 noteArea.className = "dlg__note-area";
+                noteArea.setAttribute("autocomplete", "off");
+                noteArea.setAttribute("spellcheck", "false");
                 noteArea.placeholder = "e.g. Pre-approved verbally by CFO — awaiting written confirmation…";
                 noteField.append(noteLabel, noteArea);
 
@@ -1837,42 +2656,41 @@
             renderToolbar();
             renderBody();
 
-            // Load violations from API
-            fetch("/api/compliance/violations")
-                .then(r => r.json())
-                .then(violations => {
-                    violationsData = violations.map(v => ({
-                        id: v.id,
-                        employee: v.employee_name,
-                        dept: v.department,
-                        amount: Number(v.amount),
-                        merchant: v.merchant || "",
-                        date: v.date || "",
-                        rule: v.rule_text || "",
-                        severity: v.severity,
-                        note: v.reasoning || "",
-                    }));
-                    renderBody();
-                })
-                .catch(() => {});
+            const refreshComplianceData = async () => {
+                const [violationsRes, leaderboardRes] = await Promise.all([
+                    fetch("/api/compliance/violations"),
+                    fetch("/api/compliance/leaderboard"),
+                ]);
+                if (!violationsRes.ok || !leaderboardRes.ok) {
+                    throw new Error("Failed to reload compliance data.");
+                }
+                const violations = await violationsRes.json();
+                const leaderboard = await leaderboardRes.json();
+                violationsData = violations.map(v => ({
+                    id: v.id,
+                    employee: v.employee_name,
+                    dept: v.department,
+                    amount: Number(v.amount),
+                    merchant: v.merchant || "",
+                    date: v.date || "",
+                    rule: v.rule_text || "",
+                    severity: v.severity,
+                    note: v.reasoning || "",
+                }));
+                leaderboardData = leaderboard.map(e => ({
+                    employee: e.employee,
+                    dept: e.dept,
+                    violations: e.violations,
+                    totalAmount: Number(e.totalAmount),
+                    highCount: e.highCount || 0,
+                    medCount: e.medCount || 0,
+                    lowCount: e.lowCount || 0,
+                }));
+                renderToolbar();
+                renderBody();
+            };
 
-            // Load leaderboard from API
-            fetch("/api/compliance/leaderboard")
-                .then(r => r.json())
-                .then(leaderboard => {
-                    leaderboardData = leaderboard.map(e => ({
-                        employee: e.employee,
-                        dept: e.dept,
-                        violations: e.violations,
-                        totalAmount: Number(e.totalAmount),
-                        highCount: e.highCount || 0,
-                        medCount: e.medCount || 0,
-                        lowCount: e.lowCount || 0,
-                    }));
-                    renderToolbar();
-                    renderBody();
-                })
-                .catch(() => {});
+            refreshComplianceData().catch(() => {});
 
             // Wire up scan button (Admin only)
             const scanBtn = view.querySelector("#scanBtn");
@@ -1884,12 +2702,16 @@
                         const res = await fetch("/api/compliance/scan", { method: "POST" });
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || "Scan failed");
+                        await refreshComplianceData();
                         scanBtn.textContent = "Scan Complete";
-                        // Reload page to show new violations
-                        self.navigate("policy-violations");
-                    } catch {
+                        setTimeout(() => {
+                            scanBtn.disabled = false;
+                            scanBtn.textContent = "Run Compliance Scan";
+                        }, 1200);
+                    } catch (err) {
                         scanBtn.disabled = false;
                         scanBtn.textContent = "Scan Failed \u2014 Retry";
+                        alert(err?.message || "Compliance scan failed.");
                     }
                 });
             }

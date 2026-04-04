@@ -3,6 +3,10 @@ const router = express.Router();
 const { getDb } = require('../db');
 const { generateReports } = require('../ai/reports');
 
+function isIsoDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 // GET /api/reports  (?status=pending|approved|denied|all)
 router.get('/', (req, res) => {
   const db = getDb();
@@ -24,9 +28,18 @@ router.post('/generate', async (req, res) => {
   const { employee_id, date_start, date_end } = req.body;
   if (!employee_id || !date_start || !date_end)
     return res.status(400).json({ error: 'employee_id, date_start, date_end required' });
+  if (!isIsoDate(date_start) || !isIsoDate(date_end)) {
+    return res.status(400).json({ error: 'date_start and date_end must be YYYY-MM-DD.' });
+  }
+  if (date_start > date_end) {
+    return res.status(400).json({ error: 'date_start must be before or equal to date_end.' });
+  }
   try {
     const db = getDb();
     const reportGroups = await generateReports(employee_id, date_start, date_end);
+    if (!Array.isArray(reportGroups) || reportGroups.length === 0) {
+      return res.status(400).json({ error: 'No report groups generated for this range.' });
+    }
     const insertReport = db.prepare(
       `INSERT INTO expense_reports (employee_id, title, date_range_start, date_range_end, total_amount, policy_summary) VALUES (?, ?, ?, ?, ?, ?)`
     );
