@@ -81,6 +81,7 @@ function initDb() {
       title TEXT,
       original_query TEXT,
       chart_config_json TEXT,
+      ai_response TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS conversation_history (
@@ -88,6 +89,7 @@ function initDb() {
       session_id TEXT NOT NULL,
       role TEXT NOT NULL,
       content TEXT NOT NULL,
+      chart_config TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS expense_reports (
@@ -116,6 +118,11 @@ function initDb() {
       spent_amount REAL
     );
   `);
+  // Migrate existing databases — add chart_config column if missing
+  try { db.exec(`ALTER TABLE conversation_history ADD COLUMN chart_config TEXT`); } catch {}
+  // Migrate saved_charts — add ai_response column if missing
+  try { db.exec(`ALTER TABLE saved_charts ADD COLUMN ai_response TEXT`); } catch {}
+
   return db;
 }
 

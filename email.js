@@ -22,7 +22,7 @@ async function sendApprovalEmail(submission, recommendation, token) {
           <tr><td style="padding:6px 0;color:#64748b">Amount</td><td><strong>$${submission.parsed_amount}</strong></td></tr>
         </table>
         <div style="background:#f8fafc;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
-          <h3 style="margin:0 0 0.75rem;color:#0f172a">AI Analysis</h3>
+          <h3 style="margin:0 0 0.75rem;color:#0f172a">Recommendation</h3>
           <p style="margin:0;white-space:pre-wrap;color:#334155">${recommendation}</p>
         </div>
         <div style="display:flex;gap:12px">

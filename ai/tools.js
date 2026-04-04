@@ -1,5 +1,6 @@
 // ai/tools.js
 const { getDb } = require('../db');
+const { getChartSignature } = require('../utils/chart-signature');
 
 // ─── Tool Definitions (Claude API schema) ────────────────────────────────────
 
@@ -35,6 +36,42 @@ const SHARED_TOOLS = [
 
 const CHAT_TOOLS = [
   ...SHARED_TOOLS,
+  {
+    name: 'produce_chart',
+    description: 'Render a chart in the chat window. Call this once after getting query results, when the data is best understood visually. Do not call it for single-value or yes/no answers.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        chart_type: {
+          type: 'string',
+          enum: ['bar', 'horizontalBar', 'line', 'area', 'donut'],
+          description: 'bar=category comparisons, horizontalBar=ranked lists, line=time-series trend, area=filled trend, donut=proportions of a whole',
+        },
+        title: { type: 'string', description: 'Short chart title, 3 to 7 words' },
+        subtitle: { type: 'string', description: 'Optional subtitle: data range, grand total, or context note' },
+        categories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Labels for each data point: x-axis labels for bar/line/area, or slice names for donut. Required.',
+        },
+        series: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Series name shown in tooltip and legend' },
+              data: { type: 'array', items: { type: 'number' }, description: 'One numeric value per category, in the same order' },
+            },
+            required: ['name', 'data'],
+          },
+          description: 'One entry per data series. Most single-metric charts need exactly one series.',
+        },
+        value_prefix: { type: 'string', description: 'String prepended to values in tooltips and axis labels, e.g. "$"' },
+        value_suffix: { type: 'string', description: 'String appended to values in tooltips and axis labels, e.g. "%" or " CAD"' },
+      },
+      required: ['chart_type', 'title', 'categories', 'series'],
+    },
+  },
   {
     name: 'save_chart',
     description: 'Save a chart to the Saved Visuals Gallery for quick future access.',
@@ -145,6 +182,10 @@ function executeTool(name, input) {
 
   if (name === 'save_chart') {
     const { title, original_query, chart_config_json } = input;
+    const incomingSignature = getChartSignature(original_query || title, chart_config_json);
+    const existing = db.prepare('SELECT id, title, original_query, chart_config_json FROM saved_charts').all()
+      .find((row) => getChartSignature(row.original_query || row.title, row.chart_config_json) === incomingSignature);
+    if (existing) return { saved: true, id: existing.id, alreadySaved: true };
     const r = db.prepare(
       'INSERT INTO saved_charts (title, original_query, chart_config_json) VALUES (?, ?, ?)'
     ).run(title, original_query, chart_config_json);
