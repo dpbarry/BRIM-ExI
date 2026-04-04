@@ -38,59 +38,46 @@ async function sendApprovalEmail(submission, recommendation, token) {
 }
 
 async function sendViolationNoticeEmail(violation, employeeEmail) {
-  const sevMap = { high: 'High Priority', med: 'Medium Priority', low: 'Low Priority' };
-  const sevLabel = sevMap[violation.severity] || violation.severity;
-  const reasoningText = violation.note || violation.ai_reasoning || '';
+  const reason = violation.rule_text || violation.ai_reasoning || violation.note || 'a potential policy concern';
+  const date = violation.date || 'a recent date';
+  const merchant = violation.merchant || 'Unknown Merchant';
+  const amount = Number(violation.amount || 0).toFixed(2);
 
   await resend.emails.send({
     from: 'ExI Compliance <onboarding@resend.dev>',
     to: employeeEmail,
-    subject: `Expense Review Request — ${violation.merchant || 'Transaction'} on ${violation.date || 'recent date'}`,
+    subject: `Spending Review Notice — ${merchant} on ${date}`,
     html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:2rem">
-        <h2 style="color:#0f172a;margin-bottom:0.25rem">Expense Policy Review</h2>
-        <p style="color:#64748b;margin-top:0;font-size:0.875rem">ExI Compliance · ${new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:2rem;color:#0f172a">
+        <h2 style="margin-bottom:0.25rem">Spending Review Notice</h2>
+        <p style="color:#64748b;margin-top:0;font-size:0.875rem">ExI · ${new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
-        <p style="color:#334155">Hi ${violation.employee_name},</p>
-        <p style="color:#334155;line-height:1.6">
-          We're following up on a transaction that was flagged during our recent expense review.
-          We'd appreciate a brief explanation — or if it's easier, we can set up a quick call to sort it out together.
+        <p>Hi ${violation.employee_name},</p>
+
+        <p style="line-height:1.7">
+          Our system has detected a potential concern in your spending for
+          <strong>${reason}</strong> on <strong>${date}</strong>.
         </p>
 
-        <table style="width:100%;border-collapse:collapse;margin:1.5rem 0;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">
+        <table style="width:100%;border-collapse:collapse;margin:1.5rem 0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
           <tr style="background:#f8fafc">
-            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;width:130px;border-bottom:1px solid #e2e8f0">Merchant</td>
-            <td style="padding:10px 14px;font-weight:600;border-bottom:1px solid #e2e8f0">${violation.merchant || '—'}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;width:120px;border-bottom:1px solid #e2e8f0">Merchant</td>
+            <td style="padding:10px 14px;font-weight:600;border-bottom:1px solid #e2e8f0">${merchant}</td>
           </tr>
           <tr>
             <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;border-bottom:1px solid #e2e8f0">Amount</td>
-            <td style="padding:10px 14px;font-weight:600;border-bottom:1px solid #e2e8f0">$${Number(violation.amount || 0).toFixed(2)}</td>
+            <td style="padding:10px 14px;font-weight:600;border-bottom:1px solid #e2e8f0">$${amount}</td>
           </tr>
           <tr style="background:#f8fafc">
-            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;border-bottom:1px solid #e2e8f0">Date</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">${violation.date || '—'}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem">Date</td>
+            <td style="padding:10px 14px">${date}</td>
           </tr>
-          <tr>
-            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;border-bottom:1px solid #e2e8f0">Priority</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">${sevLabel}</td>
-          </tr>
-          ${violation.rule_text ? `
-          <tr style="background:#f8fafc">
-            <td style="padding:10px 14px;color:#64748b;font-size:0.875rem;vertical-align:top">Policy</td>
-            <td style="padding:10px 14px;font-size:0.875rem;color:#475569;line-height:1.5">${violation.rule_text}</td>
-          </tr>` : ''}
         </table>
 
-        ${reasoningText ? `
-        <div style="background:#fff7ed;border-left:3px solid #f97316;padding:0.85rem 1rem;margin-bottom:1.5rem;border-radius:0 6px 6px 0">
-          <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:600;color:#9a3412;text-transform:uppercase;letter-spacing:0.04em">Note from review</p>
-          <p style="margin:0;font-size:0.875rem;color:#7c2d12;line-height:1.5">${reasoningText}</p>
-        </div>` : ''}
-
-        <p style="color:#334155;line-height:1.6">
-          Please reply to this email with any context that would help us resolve this quickly.
-          We're happy to accommodate a brief meeting if that works better.
-          Thanks for your understanding — we appreciate your cooperation.
+        <p style="line-height:1.7">
+          No action is required right now — we just want to give you a chance to provide any context
+          that might help clarify this transaction. You can simply reply to this email, or if you'd prefer,
+          reach out to set up a brief meeting with the CFO.
         </p>
 
         <p style="color:#94a3b8;font-size:0.75rem;margin-top:2rem;border-top:1px solid #e2e8f0;padding-top:1rem">

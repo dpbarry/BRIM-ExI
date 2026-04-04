@@ -115,7 +115,8 @@ router.post('/', async (req, res) => {
     // then try to generate the AI recommendation in the background.
     const placeholder = 'AI recommendation is being generated — open the ExI web app for the full analysis.';
     sendApprovalEmail(submission, placeholder, token)
-      .catch(err => console.error('Email send error (initial):', err));
+      .then(() => console.log(`[email] Approval email sent to ${process.env.FINANCE_EMAIL} for submission ${submission.id}`))
+      .catch(err => console.error('[email] Send failed:', err?.message, err?.response?.data ?? err));
 
     generateRecommendation(submission)
       .then(({ recommendation }) => {

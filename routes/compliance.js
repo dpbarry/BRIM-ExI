@@ -76,9 +76,10 @@ router.post('/notify/:id', async (req, res) => {
     if (!violation) return res.status(404).json({ error: 'Violation not found' });
 
     await sendViolationNoticeEmail(violation, employeeEmail);
+    console.log(`[email] Violation notice sent to ${employeeEmail} for violation ${violation.id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error('Violation notice email error:', err);
+    console.error('[email] Violation notice failed:', err?.message, err?.response?.data ?? err);
     res.status(500).json({ error: 'Failed to send email.' });
   }
 });
