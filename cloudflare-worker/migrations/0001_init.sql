@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   parsed_amount REAL,
   status TEXT DEFAULT 'pending',
   note TEXT,
+  recommendation_text TEXT,
+  recommendation_updated_at TEXT,
   decision_token TEXT UNIQUE,
   created_at TEXT DEFAULT (datetime('now')),
   decided_at TEXT

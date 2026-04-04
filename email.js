@@ -89,4 +89,38 @@ async function sendViolationNoticeEmail(violation, employeeEmail) {
   });
 }
 
-module.exports = { sendApprovalEmail, sendViolationNoticeEmail };
+async function sendExpenseReportPdfEmail({ to, filename, pdfBuffer, counts, filters }) {
+  const filterBits = [];
+  if (filters?.employee) filterBits.push(`Employee: ${filters.employee}`);
+  if (Array.isArray(filters?.departments) && filters.departments.length) {
+    filterBits.push(`Departments: ${filters.departments.join(', ')}`);
+  }
+  if (filters?.date_start) filterBits.push(`From: ${filters.date_start}`);
+  if (filters?.date_end) filterBits.push(`To: ${filters.date_end}`);
+  const filterText = filterBits.length ? filterBits.join(' | ') : 'No filters applied';
+
+  await resend.emails.send({
+    from: 'ExI Reports <onboarding@resend.dev>',
+    to,
+    subject: `Expense request PDF (${Number(counts?.pending) || 0} pending, ${Number(counts?.completed) || 0} completed)`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:2rem">
+        <h2 style="color:#0f172a;margin:0 0 0.5rem">Expense Request Report</h2>
+        <p style="color:#334155;margin:0 0 0.9rem">Attached is your generated PDF report.</p>
+        <ul style="margin:0;padding-left:1.2rem;color:#334155">
+          <li><strong>Pending requests:</strong> ${Number(counts?.pending) || 0}</li>
+          <li><strong>Completed requests:</strong> ${Number(counts?.completed) || 0}</li>
+        </ul>
+        <p style="margin-top:1rem;font-size:0.85rem;color:#64748b">${filterText}</p>
+      </div>
+    `,
+    attachments: [
+      {
+        filename: filename || 'expense-request-report.pdf',
+        content: Buffer.from(pdfBuffer || Buffer.alloc(0)),
+      },
+    ],
+  });
+}
+
+module.exports = { sendApprovalEmail, sendViolationNoticeEmail, sendExpenseReportPdfEmail };
