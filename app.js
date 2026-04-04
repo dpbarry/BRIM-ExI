@@ -160,7 +160,7 @@
             id: "policy-violations",
             title: "Policy violations",
             navLabel: "Policy violations",
-            render: () => `
+            render: (state) => `
                 <section class="page pc-page">
                     <div class="pc-wrap">
                         <div class="pc-panel">
@@ -176,6 +176,7 @@
                                     </button>
                                 </div>
                                 <div class="pc-toolbar" id="complianceToolbar"></div>
+                                ${state.account === "Admin" ? `<button class="btn btn--primary" id="scanBtn">Run Compliance Scan</button>` : ""}
                             </div>
                             <div class="compliance-body" id="complianceBody"></div>
                         </div>
@@ -1458,6 +1459,7 @@
         }
 
         _attachPolicyViolations(view) {
+            const self = this;
             const cs = {
                 subtab: "violations",
                 vSort: { key: "date", dir: "desc" },
@@ -1471,6 +1473,9 @@
             if (!toolbar || !body) return;
 
             const dismissedIds = new Set();
+
+            let violationsData = [];
+            let leaderboardData = [];
 
             const fmtAmt  = (n) => `$${n.toLocaleString("en-US")}`;
             const fmtDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -1498,7 +1503,7 @@
             };
 
             const buildViolationsTable = () => {
-                const rows = VIOLATIONS_DATA
+                const rows = violationsData
                     .filter(v => !dismissedIds.has(v.id))
                     .filter(v => !cs.vFilter.severity || v.severity === cs.vFilter.severity)
                     .sort((a, b) => {
@@ -1569,7 +1574,7 @@
             };
 
             const buildLeaderboardTable = () => {
-                const rows = LEADERBOARD_DATA
+                const rows = leaderboardData
                     .filter(r => !cs.lFilter.dept || r.dept === cs.lFilter.dept)
                     .sort((a, b) => {
                         const k = cs.lSort.key, d = cs.lSort.dir;
@@ -1639,7 +1644,7 @@
                         toolbar.appendChild(btn);
                     });
                 } else {
-                    const depts = [...new Set(LEADERBOARD_DATA.map(r => r.dept))].sort();
+                    const depts = [...new Set(leaderboardData.map(r => r.dept))].sort();
                     [null, ...depts].forEach(dept => {
                         const btn = Object.assign(document.createElement("button"), {
                             type: "button",
@@ -1884,6 +1889,62 @@
 
             renderToolbar();
             renderBody();
+
+            // Load violations from API
+            fetch("/api/compliance/violations")
+                .then(r => r.json())
+                .then(violations => {
+                    violationsData = violations.map(v => ({
+                        id: v.id,
+                        employee: v.employee_name,
+                        dept: v.department,
+                        amount: Number(v.amount),
+                        merchant: v.merchant || "",
+                        date: v.date || "",
+                        rule: v.rule_text || "",
+                        severity: v.severity,
+                        note: v.reasoning || "",
+                    }));
+                    renderBody();
+                })
+                .catch(() => {});
+
+            // Load leaderboard from API
+            fetch("/api/compliance/leaderboard")
+                .then(r => r.json())
+                .then(leaderboard => {
+                    leaderboardData = leaderboard.map(e => ({
+                        employee: e.employee,
+                        dept: e.dept,
+                        violations: e.violations,
+                        totalAmount: Number(e.totalAmount),
+                        highCount: e.highCount || 0,
+                        medCount: e.medCount || 0,
+                        lowCount: e.lowCount || 0,
+                    }));
+                    renderToolbar();
+                    renderBody();
+                })
+                .catch(() => {});
+
+            // Wire up scan button (Admin only)
+            const scanBtn = view.querySelector("#scanBtn");
+            if (scanBtn) {
+                scanBtn.addEventListener("click", async () => {
+                    scanBtn.disabled = true;
+                    scanBtn.textContent = "Scanning\u2026";
+                    try {
+                        const res = await fetch("/api/compliance/scan", { method: "POST" });
+                        await res.json();
+                        scanBtn.textContent = "Scan Complete";
+                        // Reload page to show new violations
+                        self.navigate("policy-violations");
+                    } catch {
+                        scanBtn.disabled = false;
+                        scanBtn.textContent = "Scan Failed \u2014 Retry";
+                    }
+                });
+            }
         }
     }
 
