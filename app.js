@@ -395,6 +395,15 @@
         const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const addDays = (base, n) => { const d = new Date(base); d.setDate(d.getDate()+n); return d; };
         const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        const wordToNumber = (value) => {
+            const map = {
+                one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+                seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+            };
+            if (Object.prototype.hasOwnProperty.call(map, value)) return map[value];
+            const numeric = Number.parseInt(value, 10);
+            return Number.isFinite(numeric) ? numeric : null;
+        };
 
         if (/\btomorrow\b/.test(t)) return fmt(addDays(today, 1));
         if (/\btoday\b/.test(t)) return fmt(today);
@@ -411,8 +420,11 @@
             let diff = (tgt - today.getDay() + 7) % 7; if (!diff) diff = 7;
             return fmt(addDays(today, diff));
         }
-        const inN = t.match(/\bin\s+(\d+)\s+(days?|weeks?)\b/);
-        if (inN) return fmt(addDays(today, parseInt(inN[1]) * (/weeks?/.test(inN[2]) ? 7 : 1)));
+        const inN = t.match(/\bin\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(days?|weeks?)\b/);
+        if (inN) {
+            const n = wordToNumber(inN[1]);
+            if (n !== null) return fmt(addDays(today, n * (/weeks?/.test(inN[2]) ? 7 : 1)));
+        }
         const iso = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
         if (iso && isIsoDate(iso[1])) return iso[1];
         const dmy = t.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
@@ -2026,24 +2038,6 @@
                     textarea?.addEventListener("input", syncCharCount);
                     syncCharCount();
 
-                    const applyPromptAutofillFallback = () => {
-                        const text = String(textarea?.value || "").trim();
-                        if (!text) return false;
-                        const amount = parseAmount(text);
-                        const dateIso = parseTentativeDate(text);
-                        const purpose = parsePurpose(text);
-                        if (amount !== null && amountInput) {
-                            amountInput.value = String(amount);
-                        }
-                        if (dateIso && dateInput) {
-                            this.setDateInputValue(dateInput, dateIso);
-                        }
-                        if (purpose && purposeInput) {
-                            purposeInput.value = purpose;
-                        }
-                        return true;
-                    };
-
                     const requestResultEl = view.querySelector("#requestResult");
                     const setRequestStatus = (message, type = "muted") => {
                         if (!requestResultEl) return;
@@ -2077,39 +2071,41 @@
                         }
                         setRequestStatusLoading("Autofilling request");
                         let didFill = false;
-                        if (supportsAiApprovalParse) {
-                            try {
-                                const res = await apiFetch("/api/approvals/parse", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
-                                });
-                                if (res.status === 404) {
-                                    supportsAiApprovalParse = false;
-                                } else {
-                                    const data = await res.json();
-                                    if (!res.ok) throw new Error(data?.error || "AI parse failed");
-                                    if (amountInput && Number.isFinite(Number(data?.parsed_amount)) && Number(data.parsed_amount) > 0) {
-                                        amountInput.value = String(Number(data.parsed_amount));
-                                        didFill = true;
-                                    }
-                                    if (purposeInput && String(data?.parsed_purpose || "").trim()) {
-                                        purposeInput.value = String(data.parsed_purpose).trim();
-                                        didFill = true;
-                                    }
-                                    const parsedDate = parseTentativeDate(text);
-                                    if (dateInput && parsedDate) {
-                                        this.setDateInputValue(dateInput, parsedDate);
-                                        didFill = true;
-                                    }
-                                }
-                            } catch {}
+                        if (!supportsAiApprovalParse) {
+                            setRequestStatus("AI fill is unavailable on this backend.", "error");
+                            return;
+                        }
+                        try {
+                            const res = await apiFetch("/api/approvals/parse", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ raw_request: `I'm John. ${text}` }),
+                            });
+                            if (res.status === 404) {
+                                supportsAiApprovalParse = false;
+                                setRequestStatus("AI fill endpoint is unavailable on this backend.", "error");
+                                return;
+                            }
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data?.error || "AI parse failed");
+                            if (amountInput && Number.isFinite(Number(data?.parsed_amount)) && Number(data.parsed_amount) > 0) {
+                                amountInput.value = String(Number(data.parsed_amount));
+                                didFill = true;
+                            }
+                            if (purposeInput && String(data?.parsed_purpose || "").trim()) {
+                                purposeInput.value = String(data.parsed_purpose).trim();
+                                didFill = true;
+                            }
+                            if (dateInput && isIsoDate(String(data?.tentative_date || ""))) {
+                                this.setDateInputValue(dateInput, String(data.tentative_date));
+                                didFill = true;
+                            }
+                        } catch (err) {
+                            setRequestStatus(err?.message || "AI parse failed. Please try again.", "error");
+                            return;
                         }
                         if (!didFill) {
-                            didFill = applyPromptAutofillFallback();
-                        }
-                        if (!didFill) {
-                            setRequestStatus("Could not infer fields from that text. Add amount/date details and try again.", "error");
+                            setRequestStatus("AI could not infer fields from that text. Add amount and date details and try again.", "error");
                             return;
                         }
                         setRequestStatus("Fields autofilled from your request.", "success");

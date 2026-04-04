@@ -204,6 +204,7 @@ Return a JSON object with these exact keys:
 - parsed_department: string (department if mentioned, otherwise "Unknown")
 - parsed_purpose: string (concise description of what the expense is for)
 - parsed_amount: number (dollar amount, or 0 if not specified)
+- tentative_date: string (ISO date YYYY-MM-DD if timing is specified, otherwise empty string; convert relative phrases like "tomorrow", "in one week", "next Friday" using the provided Today date)
 
 Return ONLY valid JSON, no other text.`;
 
@@ -315,31 +316,16 @@ function parseFirstJsonObject(value) {
   }
 }
 
-function extractFallbackAmount(rawRequest) {
-  const text = String(rawRequest || "");
-  const patterns = [
-    /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-    /\b([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
-    /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (!m) continue;
-    const n = Number(m[1].replace(/,/g, ""));
-    if (Number.isFinite(n) && n >= 0) return n;
-  }
-  return 0;
-}
-
 function normalizeParsedRequest(parsed, rawRequest) {
-  const fallbackAmount = extractFallbackAmount(rawRequest);
   const amount = Number(parsed?.parsed_amount);
-  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : fallbackAmount;
+  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const tentativeDate = String(parsed?.tentative_date || "").trim();
   return {
     parsed_name: String(parsed?.parsed_name || "Unknown").trim() || "Unknown",
     parsed_department: String(parsed?.parsed_department || "Unknown").trim() || "Unknown",
     parsed_purpose: String(parsed?.parsed_purpose || "").trim() || String(rawRequest || "").slice(0, 140) || "Expense request",
     parsed_amount: safeAmount,
+    tentative_date: isIsoDate(tentativeDate) ? tentativeDate : "",
   };
 }
 
@@ -1189,11 +1175,12 @@ async function runChatLoop(env, sessionId, userMessage) {
 }
 
 async function parseRequestAI(env, rawRequest) {
+  const todayIso = new Date().toISOString().slice(0, 10);
   const response = await callAnthropic(env, {
     model: "claude-sonnet-4-6",
     max_tokens: 512,
     system: APPROVAL_PARSE_SYSTEM,
-    messages: [{ role: "user", content: rawRequest }],
+    messages: [{ role: "user", content: `Today: ${todayIso}\n\nRequest: ${rawRequest}` }],
   });
   const text = (response.content || []).find((b) => b.type === "text")?.text || "{}";
   const parsed = parseFirstJsonObject(text);
@@ -1549,13 +1536,12 @@ export default {
         const body = await parseBody(request);
         const raw_request = String(body?.raw_request || "").trim();
         if (!raw_request) return badRequest(request, env, "raw_request required");
-        let parsed;
         try {
-          parsed = await parseRequestAI(env, raw_request);
-        } catch {
-          parsed = normalizeParsedRequest({}, raw_request);
+          const parsed = await parseRequestAI(env, raw_request);
+          return jsonResponse(request, env, 200, parsed);
+        } catch (err) {
+          return jsonResponse(request, env, 502, { error: err?.message || "AI parse unavailable." });
         }
-        return jsonResponse(request, env, 200, parsed);
       }
 
       if (pathname === "/api/approvals" && request.method === "POST") {
@@ -1571,6 +1557,7 @@ export default {
               parsed_department: body?.parsed_department,
               parsed_purpose: body?.parsed_purpose,
               parsed_amount: body?.parsed_amount,
+              tentative_date: body?.tentative_date,
             },
             raw_request
           );

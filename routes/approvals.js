@@ -104,15 +104,8 @@ router.post('/parse', async (req, res) => {
   try {
     const parsed = await parseRequest(raw_request);
     res.json(parsed);
-  } catch {
-    const fallbackAmountMatch = raw_request.match(/\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i);
-    const fallbackAmount = fallbackAmountMatch ? Number(fallbackAmountMatch[1].replace(/,/g, '')) : 0;
-    res.json({
-      parsed_name: 'Unknown',
-      parsed_department: 'Unknown',
-      parsed_purpose: raw_request.slice(0, 140) || 'Expense request',
-      parsed_amount: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
-    });
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'AI parse unavailable.' });
   }
 });
 
@@ -150,7 +143,7 @@ router.post('/', async (req, res) => {
       parsed.parsed_department !== 'Unknown' ? parsed.parsed_department : (employee?.department ?? 'Unknown'),
       parsed.parsed_purpose,
       parsed.parsed_amount,
-      tentative_date || null,
+      tentative_date || parsed.tentative_date || null,
       token
     );
 
