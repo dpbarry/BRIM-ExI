@@ -22,10 +22,9 @@
 
     const icons = {
         "talk-to-data": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5A3.5 3.5 0 0 1 8.5 4h7A3.5 3.5 0 0 1 19 7.5v4A3.5 3.5 0 0 1 15.5 15H11l-3.8 3.5c-.6.5-1.2.1-1.2-.6V15.4A3.4 3.4 0 0 1 5 12.1z"/><path d="M9 8.35h6M9 10.6h4"/></svg>`,
-        "data-gallery": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5" fill="none"/><path d="M5 5.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 9.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 13.5V18c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4.5" fill="none"/></svg>`,
         "policy-rules": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3.6v5.2c0 4.4-3 7.8-7 9.2-4-1.4-7-4.8-7-9.2V6.6z"/><path d="M9.3 12.1l1.8 1.8 3.6-3.6"/></svg>`,
         "policy-violations": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 5.25 3.8 18.75Q3.2 19.8 4.4 19.8H19.6Q20.8 19.8 20.2 18.75L12.6 5.25Q12 4.2 11.4 5.25Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17.2" r="0.95" fill="currentColor" stroke="none"/></svg>`,
-        "saved-visuals": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+        "saved-visuals": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5" fill="none"/><path d="M5 5.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 9.5v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4" fill="none"/><path d="M5 13.5V18c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4.5" fill="none"/></svg>`,
         "pre-approval": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="5.75" r="1.6"/><path d="M7 7.5v4.2a3.3 3.3 0 0 0 3.3 3.3h7.2"/><path d="M14.8 12.8 17.5 15.5l-2.7 2.7"/></svg>`,
         "expense-reports": `<svg class="sidebar-item__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3.5" width="12" height="17" rx="2" ry="2"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>`,
     };
@@ -89,32 +88,6 @@
                             </button>
                         </div>
                     </section>
-                    </div>
-                </section>`,
-        },
-        {
-            id: "data-gallery",
-            title: "Saved visuals",
-            navLabel: "Saved charts and graphs",
-            render: () => `
-                <section class="page cg-page">
-                    <div class="cg-wrap">
-                        <header class="cg-head">
-                            <h1 class="cg-title">Saved visuals</h1>
-                            <p class="cg-lead">Pinned charts from chat will land here.</p>
-                        </header>
-                        <div class="cg-grid" id="chartGalleryGrid" role="list" aria-label="Chart gallery"></div>
-                        <dialog class="cg-dialog" id="chartGalleryDialog" aria-labelledby="cgDialogTitle">
-                            <div class="cg-dialog__chrome">
-                                <h2 id="cgDialogTitle" class="cg-dialog__title"></h2>
-                                <button type="button" class="cg-dialog__close" data-cg-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                </button>
-                            </div>
-                            <div class="cg-dialog__body">
-                                <div class="cg-dialog__stage"><canvas id="chartGalleryDialogCanvas" aria-hidden="true"></canvas></div>
-                            </div>
-                        </dialog>
                     </div>
                 </section>`,
         },
@@ -370,199 +343,6 @@
         { employee: "Dylan Park",   dept: "Operations",  violations: 1, totalAmount: 110,  highCount: 0, medCount: 1, lowCount: 0 },
     ];
 
-    function chartThemeFromCss() {
-        const r = document.documentElement;
-        const s = getComputedStyle(r);
-        const pick = (name, fb) => {
-            const v = s.getPropertyValue(name).trim();
-            return v || fb;
-        };
-        return {
-            text: pick("--color-text", "#0a0a0b"),
-            muted: pick("--color-text-muted", "#8b939c"),
-            border: pick("--color-border", "#d2d8de"),
-            accent: pick("--color-accent", "#00b8e6"),
-            accentActive: pick("--color-accent-active", "#0082ad"),
-            bg: pick("--color-bg", "#ffffff"),
-        };
-    }
-
-    function chartFills(t, n) {
-        const base = [t.accent, t.accentActive, "#5bc4de", "#88d4ec", "#b3e8f5"];
-        return base.slice(0, n);
-    }
-
-    function withAlpha(cssColor, a) {
-        const c = (cssColor || "").trim();
-        const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
-        if (hex) {
-            let h = hex[1];
-            if (h.length === 3) h = h.split("").map((x) => x + x).join("");
-            const n = parseInt(h, 16);
-            return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-        }
-        const rgb = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-        if (rgb) return `rgba(${rgb[1]},${rgb[2]},${rgb[3]},${a})`;
-        return c;
-    }
-
-    function chartGalleryConfig(itemId, compact) {
-        const t = chartThemeFromCss();
-        const axis = (extra = {}) => ({
-            ticks: { color: t.muted, font: { size: compact ? 9 : 12 } },
-            grid: { color: `${t.border}55` },
-            border: { color: t.border },
-            ...extra,
-        });
-        const legend = {
-            labels: { color: t.muted, font: { size: compact ? 10 : 12 } },
-            display: !compact,
-        };
-        const anim = compact ? false : { duration: 520, easing: "easeOutQuart" };
-        const thumbStatic = compact
-            ? {
-                  events: [],
-                  plugins: { tooltip: { enabled: false } },
-              }
-            : {};
-
-        if (itemId === "spend-dept") {
-            return {
-                type: "bar",
-                data: {
-                    labels: ["Sales", "Engineering", "Marketing", "Operations", "Finance"],
-                    datasets: [
-                        {
-                            label: "Spend ($k)",
-                            data: [418, 305, 268, 192, 148],
-                            backgroundColor: chartFills(t, 5),
-                            borderColor: t.border,
-                            borderWidth: 1,
-                            borderRadius: compact ? 4 : 8,
-                        },
-                    ],
-                },
-                options: {
-                    ...thumbStatic,
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: compact ? 1.35 : 1.6,
-                    animation: anim,
-                    plugins: { ...thumbStatic.plugins, legend },
-                    scales: {
-                        x: axis(),
-                        y: { ...axis(), beginAtZero: true, ticks: { ...axis().ticks, callback: (v) => `$${v}k` } },
-                    },
-                },
-            };
-        }
-        if (itemId === "expense-trend") {
-            return {
-                type: "line",
-                data: {
-                    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                    datasets: [
-                        {
-                            label: "Submitted reports",
-                            data: [124, 142, 138, 165, 158, 181],
-                            borderColor: t.accent,
-                            backgroundColor: withAlpha(t.accent, 0.14),
-                            fill: true,
-                            tension: 0.38,
-                            pointRadius: compact ? 0 : 4,
-                            pointHoverRadius: compact ? 0 : 6,
-                            borderWidth: compact ? 2 : 2.5,
-                        },
-                    ],
-                },
-                options: {
-                    ...thumbStatic,
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: compact ? 1.35 : 1.7,
-                    animation: anim,
-                    plugins: { ...thumbStatic.plugins, legend },
-                    scales: {
-                        x: axis(),
-                        y: { ...axis(), beginAtZero: true },
-                    },
-                },
-            };
-        }
-        if (itemId === "category-mix") {
-            return {
-                type: "doughnut",
-                data: {
-                    labels: ["Travel", "Meals", "SaaS & tools", "Office", "Other"],
-                    datasets: [
-                        {
-                            data: [32, 24, 22, 12, 10],
-                            backgroundColor: chartFills(t, 5),
-                            borderColor: t.bg,
-                            borderWidth: 2,
-                            hoverOffset: compact ? 0 : 12,
-                        },
-                    ],
-                },
-                options: {
-                    ...thumbStatic,
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: compact ? 1 : 1.05,
-                    animation: anim,
-                    plugins: { ...thumbStatic.plugins, legend: { ...legend, position: compact ? "bottom" : "right" } },
-                    cutout: compact ? "58%" : "52%",
-                },
-            };
-        }
-        if (itemId === "risk-radar") {
-            return {
-                type: "radar",
-                data: {
-                    labels: ["Policy fit", "Documentation", "Timing", "Amount risk", "Vendor"],
-                    datasets: [
-                        {
-                            label: "Health score",
-                            data: [82, 76, 88, 71, 79],
-                            borderColor: t.accent,
-                            backgroundColor: withAlpha(t.accent, 0.22),
-                            pointBackgroundColor: t.accent,
-                            pointBorderColor: t.bg,
-                            borderWidth: compact ? 1.5 : 2,
-                            pointHoverRadius: compact ? 0 : 4,
-                        },
-                    ],
-                },
-                options: {
-                    ...thumbStatic,
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: compact ? 1 : 1.2,
-                    animation: anim,
-                    plugins: { ...thumbStatic.plugins, legend },
-                    scales: {
-                        r: {
-                            angleLines: { color: `${t.border}88` },
-                            grid: { color: `${t.border}55` },
-                            pointLabels: { color: t.muted, font: { size: compact ? 9 : 11 } },
-                            ticks: { display: false, backdropColor: "transparent" },
-                            suggestedMin: 0,
-                            suggestedMax: 100,
-                        },
-                    },
-                },
-            };
-        }
-        return null;
-    }
-
-    const CHART_GALLERY_ITEMS = [
-        { id: "spend-dept", title: "Spend by department", subtitle: "Sample Q1 totals (USD thousands)" },
-        { id: "expense-trend", title: "Expense volume trend", subtitle: "Submitted reports per month" },
-        { id: "category-mix", title: "Category mix", subtitle: "Share of T&E by type" },
-        { id: "risk-radar", title: "Risk profile", subtitle: "Sample compliance dimensions" },
-    ];
-
     class App {
         constructor(root) {
             this.root = root;
@@ -587,7 +367,6 @@
             this._talkAbortController = null;
             this._talkStreamBubble = null;
             this._talkLastUserMsgEl = null;
-            this._disposeChartGallery = null;
             try {
                 const raw = store.get(STORAGE.talkMessages);
                 if (raw) {
@@ -864,8 +643,6 @@
         }
 
         async renderRoute(route, isInitial) {
-            this._disposeChartGallery?.();
-            this._disposeChartGallery = null;
             // Abort any in-flight talk request on route change
             if (this._talkAbortController) {
                 this._talkAbortController.abort();
@@ -1184,10 +961,6 @@
             }
             if (routeId === "policy-violations") {
                 this.attachPolicyHandlers(view, "violations");
-                return;
-            }
-            if (routeId === "data-gallery") {
-                this.attachChartGalleryHandlers(view);
                 return;
             }
             if (routeId === "saved-visuals") {
@@ -1513,99 +1286,6 @@
             });
         }
 
-        attachChartGalleryHandlers(view) {
-            const grid = view.querySelector("#chartGalleryGrid");
-            const dialog = view.querySelector("#chartGalleryDialog");
-            const dialogCanvas = view.querySelector("#chartGalleryDialogCanvas");
-            const dialogTitle = view.querySelector("#cgDialogTitle");
-            const ChartCtor = typeof Chart !== "undefined" ? Chart : null;
-            const thumbCharts = [];
-            let dialogChart = null;
-            const ac = new AbortController();
-            const { signal } = ac;
-
-            const destroyDialogChart = () => {
-                if (dialogChart) {
-                    dialogChart.destroy();
-                    dialogChart = null;
-                }
-            };
-
-            const cloneCfg = (cfg) => {
-                try {
-                    return structuredClone(cfg);
-                } catch {
-                    return JSON.parse(JSON.stringify(cfg));
-                }
-            };
-
-            const openDialog = (item) => {
-                if (!ChartCtor || !dialog || !dialogCanvas || !dialogTitle) return;
-                destroyDialogChart();
-                dialogTitle.textContent = item.title;
-                const cfg = chartGalleryConfig(item.id, false);
-                if (!cfg) return;
-                dialogChart = new ChartCtor(dialogCanvas, cloneCfg(cfg));
-                dialog.showModal();
-            };
-
-            const dispose = () => {
-                ac.abort();
-                destroyDialogChart();
-                thumbCharts.splice(0).forEach((c) => c.destroy());
-            };
-            this._disposeChartGallery = dispose;
-
-            if (!grid) return;
-
-            if (!ChartCtor) {
-                grid.innerHTML =
-                    '<p class="cg-fallback">Chart.js could not be loaded. Check your network and refresh.</p>';
-                return;
-            }
-
-            CHART_GALLERY_ITEMS.forEach((item) => {
-                const card = document.createElement("article");
-                card.className = "cg-card";
-                card.setAttribute("role", "listitem");
-                card.tabIndex = 0;
-                card.dataset.chartId = item.id;
-                card.innerHTML = `
-                    <div class="cg-card__preview"><canvas aria-hidden="true"></canvas></div>
-                    <div class="cg-card__meta">
-                        <h3 class="cg-card__title">${item.title}</h3>
-                        <p class="cg-card__sub">${item.subtitle}</p>
-                    </div>`;
-                const canvas = card.querySelector("canvas");
-                const cfg = chartGalleryConfig(item.id, true);
-                if (cfg && canvas) {
-                    thumbCharts.push(new ChartCtor(canvas, cloneCfg(cfg)));
-                }
-                const activate = () => openDialog(item);
-                card.addEventListener("click", activate, { signal });
-                card.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        activate();
-                    }
-                }, { signal });
-                grid.appendChild(card);
-            });
-
-            dialog?.addEventListener("close", destroyDialogChart, { signal });
-            dialog?.querySelector("[data-cg-close]")?.addEventListener(
-                "click",
-                () => dialog.close(),
-                { signal }
-            );
-            dialog?.addEventListener(
-                "click",
-                (e) => {
-                    if (e.target === dialog) dialog.close();
-                },
-                { signal }
-            );
-        }
 
         attachPolicyHandlers(view, section) {
             if (section === "rules") {
