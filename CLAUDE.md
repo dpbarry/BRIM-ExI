@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The full implementation plan is at:
 `docs/superpowers/plans/2026-04-03-exi-implementation.md`
 
-**Core plan tasks (1–12) are complete.** Further work is polish and product tweaks — see **Open UX / polish** under Frontend Conventions (e.g. merge duplicate saved-chart nav, align Pre-Approval / Expense Reports visuals with Talk to Data and Policy Compliance).
+**Core plan tasks (1–12) are complete.** Further work is polish, bugs from testing, and product tweaks — see **`docs/NEXT_SESSION.md`** for a prioritized handoff (functional fixes, Resend, parsing, layout). For visual/IA consistency, see **Open UX / polish** under Frontend Conventions (e.g. merge duplicate saved-chart nav, align Pre-Approval / Expense Reports visuals with Talk to Data and Policy Compliance).
 
 ---
 
@@ -97,7 +97,7 @@ These are intentional follow-ups for navigation consistency and visual cohesion 
 
 1. **Two sidebar entries for the same concept — merge into one.** Both **`data-gallery`** (nav label *Saved charts and graphs*, `cg-page` layout + modal dialog) and **`saved-visuals`** (nav label *Saved Visuals*, `saved-visuals-page` + `gallery-grid`) load charts from the same `saved_charts` data. **Pick a single route and nav item.** When combining, **keep the stronger presentation from `data-gallery`** (card grid, dialog, `cg-*` styling) rather than the flatter `saved-visuals` page; remove duplicate `initRoute` branches and dead CSS/markup as part of the merge.
 
-2. **Match “hero” pages visually.** **Pre-Approval** (`pre-approval` / `approvals-page`) and **Automated Expense Report** (`expense-reports`, still mostly placeholder) should be restyled to align with the **rounded panels, spacing, and atmosphere** used on **Talk to your data** (`talk-page`) and **Policy Compliance Engine** (`pc-page`). Goal: one coherent product chrome, not a mix of plain forms and premium-looking flows.
+2. **Match “hero” pages visually.** **Pre-Approval** (`pre-approval` / `approvals-page`) and **Expense Reports** (`expense-reports` / `reports-page`) should be restyled to align with the **rounded panels, spacing, and atmosphere** used on **Talk to your data** (`talk-page`) and **Policy Compliance Engine** (`pc-page`). Goal: one coherent product chrome, not a mix of plain forms and premium-looking flows.
 
 ---
 
