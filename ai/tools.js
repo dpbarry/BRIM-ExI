@@ -124,13 +124,18 @@ function executeTool(name, input) {
 
   if (name === 'run_query') {
     const { sql } = input;
-    const normalized = sql.trim().toLowerCase();
-    if (!normalized.startsWith('select')) {
+    if (!sql.trim().toLowerCase().startsWith('select')) {
       return { error: 'Only SELECT queries are permitted.' };
     }
     try {
-      const rows = db.prepare(sql).all();
-      return { rows, count: rows.length };
+      const stmt = db.prepare(sql);
+      if (!stmt.reader) {
+        return { error: 'Only SELECT queries are permitted.' };
+      }
+      const rows = stmt.all();
+      // Enforce row limit to avoid bloating Claude tool-result payloads
+      const limited = rows.slice(0, 200);
+      return { rows: limited, count: rows.length, truncated: rows.length > 200 };
     } catch (err) {
       return { error: err.message };
     }
@@ -157,21 +162,32 @@ function executeTool(name, input) {
       `SELECT severity, COUNT(*) as count FROM violations WHERE employee_id = ? GROUP BY severity`
     ).all(employee_id);
     const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(employee_id);
+    if (!employee) return { error: `Employee with id ${employee_id} not found` };
     return { employee, recent_transactions: txns, violation_summary: violations };
   }
 
   if (name === 'get_department_budget') {
     const { department } = input;
     const currentPeriod = getCurrentQuarter();
-    const budget = db.prepare(
+    let budget = db.prepare(
       'SELECT * FROM department_budgets WHERE department = ? AND period = ?'
     ).get(department, currentPeriod);
-    if (!budget) return { error: `No budget found for ${department} in ${currentPeriod}`, available_periods: db.prepare('SELECT DISTINCT period FROM department_budgets WHERE department = ?').all(department) };
-    return { ...budget, remaining: budget.budget_amount - budget.spent_amount, period: currentPeriod };
+    // Fall back to most recent available period if current quarter not seeded
+    if (!budget) {
+      budget = db.prepare(
+        'SELECT * FROM department_budgets WHERE department = ? ORDER BY period DESC LIMIT 1'
+      ).get(department);
+    }
+    if (!budget) return { error: `No budget data found for department: ${department}` };
+    return { ...budget, remaining: budget.budget_amount - budget.spent_amount, note: budget.period !== currentPeriod ? `Using most recent available period (${budget.period}); current quarter (${currentPeriod}) not yet seeded` : undefined };
   }
 
   if (name === 'flag_violation') {
     const { employee_id, transaction_id, rule_id, amount, merchant, date, severity, note, reasoning } = input;
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return { error: `Invalid date format: "${date}". Expected YYYY-MM-DD.` };
+    }
     // Avoid duplicate violations for same transaction + rule
     const existing = db.prepare(
       'SELECT id FROM violations WHERE transaction_id = ? AND rule_id = ?'
