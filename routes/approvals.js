@@ -97,6 +97,18 @@ router.get('/', (req, res) => {
   }
 });
 
+// POST /api/approvals/parse — lightweight AI parse for John's autofill
+router.post('/parse', async (req, res) => {
+  const raw_request = String(req.body?.raw_request || '').trim();
+  if (!raw_request) return res.status(400).json({ error: 'raw_request required' });
+  try {
+    const parsed = await parseRequest(raw_request);
+    res.json(parsed);
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'AI parse unavailable.' });
+  }
+});
+
 // POST /api/approvals  — new submission from employee
 router.post('/', async (req, res) => {
   const { raw_request, parsed_name, parsed_department, parsed_purpose, parsed_amount, tentative_date } = req.body;
@@ -131,7 +143,7 @@ router.post('/', async (req, res) => {
       parsed.parsed_department !== 'Unknown' ? parsed.parsed_department : (employee?.department ?? 'Unknown'),
       parsed.parsed_purpose,
       parsed.parsed_amount,
-      tentative_date || null,
+      tentative_date || parsed.tentative_date || null,
       token
     );
 
@@ -193,6 +205,24 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error('Recommendation error:', err);
     res.status(500).json({ error: 'Failed to generate recommendation.' });
+  }
+});
+
+// DELETE /api/approvals/:id  — remove a pending submission
+router.delete('/:id', (req, res) => {
+  try {
+    const db = getDb();
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid submission id.' });
+    const existing = db.prepare('SELECT id, status FROM submissions WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Submission not found.' });
+    if (existing.status !== 'pending') {
+      return res.status(409).json({ error: 'Only pending submissions can be deleted.' });
+    }
+    db.prepare('DELETE FROM submissions WHERE id = ?').run(id);
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

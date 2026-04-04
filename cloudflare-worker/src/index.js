@@ -204,6 +204,7 @@ Return a JSON object with these exact keys:
 - parsed_department: string (department if mentioned, otherwise "Unknown")
 - parsed_purpose: string (concise description of what the expense is for)
 - parsed_amount: number (dollar amount, or 0 if not specified)
+- tentative_date: string (ISO date YYYY-MM-DD if timing is specified, otherwise empty string; convert relative phrases like "tomorrow", "in one week", "next Friday" using the provided Today date)
 
 Return ONLY valid JSON, no other text.`;
 
@@ -315,31 +316,16 @@ function parseFirstJsonObject(value) {
   }
 }
 
-function extractFallbackAmount(rawRequest) {
-  const text = String(rawRequest || "");
-  const patterns = [
-    /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-    /\b([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
-    /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (!m) continue;
-    const n = Number(m[1].replace(/,/g, ""));
-    if (Number.isFinite(n) && n >= 0) return n;
-  }
-  return 0;
-}
-
 function normalizeParsedRequest(parsed, rawRequest) {
-  const fallbackAmount = extractFallbackAmount(rawRequest);
   const amount = Number(parsed?.parsed_amount);
-  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : fallbackAmount;
+  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const tentativeDate = String(parsed?.tentative_date || "").trim();
   return {
     parsed_name: String(parsed?.parsed_name || "Unknown").trim() || "Unknown",
     parsed_department: String(parsed?.parsed_department || "Unknown").trim() || "Unknown",
     parsed_purpose: String(parsed?.parsed_purpose || "").trim() || String(rawRequest || "").slice(0, 140) || "Expense request",
     parsed_amount: safeAmount,
+    tentative_date: isIsoDate(tentativeDate) ? tentativeDate : "",
   };
 }
 
@@ -440,6 +426,91 @@ function normalizeReportFilterParse(raw) {
   const request_status = ["pending", "completed", "all"].includes(statusRaw) ? statusRaw : "all";
   const notes = String(raw?.notes || "").trim();
   return { employee_names, departments, date_start, date_end, request_status, notes };
+}
+
+function parsePromptDateIso(text, todayIso = "") {
+  const input = String(text || "");
+  const t = input.toLowerCase();
+  const today = isIsoDate(todayIso) ? new Date(`${todayIso}T12:00:00`) : new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const addDays = (base, n) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + n);
+    return d;
+  };
+  const addMonths = (base, n) => {
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + n);
+    return d;
+  };
+  if (/\btoday\b/.test(t)) return fmt(startOfToday);
+  if (/\btomorrow\b/.test(t)) return fmt(addDays(startOfToday, 1));
+  const inDays = t.match(/\bin\s+(\d+)\s+days?\b/);
+  if (inDays) return fmt(addDays(startOfToday, Number(inDays[1]) || 0));
+  const inWeeks = t.match(/\bin\s+(\d+)\s+weeks?\b/);
+  if (inWeeks) return fmt(addDays(startOfToday, (Number(inWeeks[1]) || 0) * 7));
+  if (/\bnext\s+month\b/.test(t)) return fmt(addMonths(startOfToday, 1));
+  const isoMatch = input.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (isoMatch && isIsoDate(isoMatch[1])) return isoMatch[1];
+  return "";
+}
+
+function heuristicParseReportFilters(prompt, options = {}) {
+  const text = String(prompt || "").trim();
+  if (!text) {
+    return { employee_names: [], departments: [], date_start: "", date_end: "", request_status: "all", notes: "" };
+  }
+  const lower = text.toLowerCase();
+  const employeeOptions = Array.isArray(options.employeeNames) ? options.employeeNames : [];
+  const departmentOptions = Array.isArray(options.departments) ? options.departments : [];
+  const employee_names = employeeOptions.filter((name) => {
+    const n = String(name || "").trim();
+    if (!n) return false;
+    const nLower = n.toLowerCase();
+    return lower.includes(nLower) || lower.includes(nLower.split(" ")[0]);
+  });
+  const departments = departmentOptions.filter((dept) => lower.includes(String(dept || "").toLowerCase()));
+  const request_status = /\b(pending|open)\b/.test(lower)
+    ? "pending"
+    : /\b(completed|complete|approved|denied|closed)\b/.test(lower)
+      ? "completed"
+      : "all";
+  let date_start = "";
+  let date_end = "";
+  const between = text.match(/\bbetween\s+(\d{4}-\d{2}-\d{2})\s+(?:and|to)\s+(\d{4}-\d{2}-\d{2})\b/i);
+  if (between && isIsoDate(between[1]) && isIsoDate(between[2])) {
+    date_start = between[1];
+    date_end = between[2];
+  } else {
+    const fromTo = text.match(/\bfrom\s+(\d{4}-\d{2}-\d{2})\s+(?:to|until|through)\s+(\d{4}-\d{2}-\d{2})\b/i);
+    if (fromTo && isIsoDate(fromTo[1]) && isIsoDate(fromTo[2])) {
+      date_start = fromTo[1];
+      date_end = fromTo[2];
+    } else {
+      if (/\blast\s+7\s+days\b/i.test(text)) {
+        const todayIso = parsePromptDateIso("today", options.todayIso);
+        date_end = todayIso;
+        const d = new Date(`${todayIso}T12:00:00`);
+        d.setDate(d.getDate() - 7);
+        date_start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      } else if (/\blast\s+30\s+days\b/i.test(text)) {
+        const todayIso = parsePromptDateIso("today", options.todayIso);
+        date_end = todayIso;
+        const d = new Date(`${todayIso}T12:00:00`);
+        d.setDate(d.getDate() - 30);
+        date_start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+    }
+  }
+  return {
+    employee_names,
+    departments,
+    date_start: isIsoDate(date_start) ? date_start : "",
+    date_end: isIsoDate(date_end) ? date_end : "",
+    request_status,
+    notes: "Heuristic parse applied.",
+  };
 }
 
 function parseDepartments(value) {
@@ -1104,11 +1175,12 @@ async function runChatLoop(env, sessionId, userMessage) {
 }
 
 async function parseRequestAI(env, rawRequest) {
+  const todayIso = new Date().toISOString().slice(0, 10);
   const response = await callAnthropic(env, {
     model: "claude-sonnet-4-6",
     max_tokens: 512,
     system: APPROVAL_PARSE_SYSTEM,
-    messages: [{ role: "user", content: rawRequest }],
+    messages: [{ role: "user", content: `Today: ${todayIso}\n\nRequest: ${rawRequest}` }],
   });
   const text = (response.content || []).find((b) => b.type === "text")?.text || "{}";
   const parsed = parseFirstJsonObject(text);
@@ -1171,7 +1243,7 @@ async function generateReportsAI(env, employeeId, dateStart, dateEnd) {
 async function parseReportFiltersAI(env, prompt, options = {}) {
   const text = String(prompt || "").trim();
   if (!text || !env.ANTHROPIC_API_KEY) {
-    return { employee_names: [], departments: [], date_start: "", date_end: "", request_status: "all", notes: "" };
+    return heuristicParseReportFilters(text, options);
   }
   const employeeOptions = Array.isArray(options.employeeNames) ? options.employeeNames : [];
   const departmentOptions = Array.isArray(options.departments) ? options.departments : [];
@@ -1183,15 +1255,25 @@ async function parseReportFiltersAI(env, prompt, options = {}) {
     "",
     `User prompt: ${text}`,
   ].join("\n");
-  const response = await callAnthropic(env, {
-    model: "claude-sonnet-4-6",
-    max_tokens: 700,
-    system: REPORT_FILTER_PARSE_SYSTEM,
-    messages: [{ role: "user", content: userMsg }],
-  });
-  const contentText = (response.content || []).find((b) => b.type === "text")?.text || "{}";
-  const parsed = parseFirstJsonObject(contentText) || {};
-  return normalizeReportFilterParse(parsed);
+  try {
+    const response = await callAnthropic(env, {
+      model: "claude-sonnet-4-6",
+      max_tokens: 700,
+      system: REPORT_FILTER_PARSE_SYSTEM,
+      messages: [{ role: "user", content: userMsg }],
+    });
+    const contentText = (response.content || []).find((b) => b.type === "text")?.text || "{}";
+    const parsed = parseFirstJsonObject(contentText) || {};
+    const normalized = normalizeReportFilterParse(parsed);
+    const hasAnyField =
+      normalized.employee_names.length ||
+      normalized.departments.length ||
+      normalized.date_start ||
+      normalized.date_end ||
+      (normalized.notes && normalized.notes.length > 0);
+    if (hasAnyField) return normalized;
+  } catch {}
+  return heuristicParseReportFilters(text, options);
 }
 
 async function sendApprovalEmail(env, submission, recommendation, token) {
@@ -1450,11 +1532,42 @@ export default {
         return jsonResponse(request, env, 200, rows);
       }
 
+      if (pathname === "/api/approvals/parse" && request.method === "POST") {
+        const body = await parseBody(request);
+        const raw_request = String(body?.raw_request || "").trim();
+        if (!raw_request) return badRequest(request, env, "raw_request required");
+        try {
+          const parsed = await parseRequestAI(env, raw_request);
+          return jsonResponse(request, env, 200, parsed);
+        } catch (err) {
+          return jsonResponse(request, env, 502, { error: err?.message || "AI parse unavailable." });
+        }
+      }
+
       if (pathname === "/api/approvals" && request.method === "POST") {
         const body = await parseBody(request);
         const raw_request = String(body?.raw_request || "");
         if (!raw_request) return badRequest(request, env, "raw_request required");
-        const parsed = await parseRequestAI(env, raw_request);
+        let parsed = null;
+        const hasClientParsedName = String(body?.parsed_name || "").trim().length > 0;
+        if (hasClientParsedName) {
+          parsed = normalizeParsedRequest(
+            {
+              parsed_name: body?.parsed_name,
+              parsed_department: body?.parsed_department,
+              parsed_purpose: body?.parsed_purpose,
+              parsed_amount: body?.parsed_amount,
+              tentative_date: body?.tentative_date,
+            },
+            raw_request
+          );
+        } else {
+          try {
+            parsed = await parseRequestAI(env, raw_request);
+          } catch {
+            parsed = normalizeParsedRequest({}, raw_request);
+          }
+        }
         const firstName = (parsed.parsed_name || "").split(" ")[0];
         const employee = await d1First(env, "SELECT * FROM employees WHERE name LIKE ? LIMIT 1", [`%${firstName}%`]);
         const token = crypto.randomUUID();
@@ -1485,6 +1598,17 @@ export default {
         if (!submission) return jsonResponse(request, env, 404, { error: "Not found" });
         const { recommendation, shortNote } = await generateRecommendationAI(env, submission);
         return jsonResponse(request, env, 200, { ...submission, recommendation, shortNote });
+      }
+
+      if (/^\/api\/approvals\/\d+$/.test(pathname) && request.method === "DELETE") {
+        const id = Number(pathname.split("/").pop());
+        const submission = await d1First(env, "SELECT id, status FROM submissions WHERE id = ?", [id]);
+        if (!submission) return jsonResponse(request, env, 404, { error: "Submission not found." });
+        if (submission.status !== "pending") {
+          return jsonResponse(request, env, 409, { error: "Only pending submissions can be deleted." });
+        }
+        await d1Run(env, "DELETE FROM submissions WHERE id = ?", [id]);
+        return jsonResponse(request, env, 200, { success: true, id });
       }
 
       if (/^\/api\/approvals\/\d+\/decide$/.test(pathname) && request.method === "POST") {

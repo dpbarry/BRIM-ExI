@@ -10,6 +10,7 @@ Return a JSON object with these exact keys:
 - parsed_department: string (department if mentioned, otherwise "Unknown")
 - parsed_purpose: string (concise description of what the expense is for)
 - parsed_amount: number (numeric dollar amount only — no $ sign, no commas; e.g. "$1,200" → 1200, "1200 CAD" → 1200, "five hundred dollars" → 500; use 0 only if truly no amount is mentioned)
+- tentative_date: string (ISO date YYYY-MM-DD if timing is specified, otherwise empty string; convert relative phrases like "tomorrow", "in one week", "next Friday" using the provided Today date)
 
 Return ONLY valid JSON with no markdown, no code fences, no extra text.`;
 
@@ -116,29 +117,14 @@ function parseFirstJsonObject(value) {
   }
 }
 
-function extractFallbackAmount(rawRequest) {
-  const text = String(rawRequest || '');
-  const patterns = [
-    /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-    /\b([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:cad|usd|dollars?)\b/i,
-    /\bamount\s*(?:is|of|:)?\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)/i,
-  ];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (!match) continue;
-    const numeric = Number(match[1].replace(/,/g, ''));
-    if (Number.isFinite(numeric) && numeric >= 0) return numeric;
-  }
-  return 0;
+function isIsoDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
 }
 
 function normalizeParsedRequest(parsed, rawRequest) {
-  const fallbackAmount = extractFallbackAmount(rawRequest);
   const amount = Number(parsed?.parsed_amount);
-  const safeAmount =
-    Number.isFinite(amount) && amount > 0
-      ? amount
-      : fallbackAmount;
+  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const tentativeDate = String(parsed?.tentative_date || '').trim();
 
   return {
     parsed_name: String(parsed?.parsed_name || 'Unknown').trim() || 'Unknown',
@@ -148,6 +134,7 @@ function normalizeParsedRequest(parsed, rawRequest) {
       String(rawRequest || '').slice(0, 140) ||
       'Expense request',
     parsed_amount: safeAmount,
+    tentative_date: isIsoDate(tentativeDate) ? tentativeDate : '',
   };
 }
 
@@ -164,11 +151,12 @@ function formatCurrency(value) {
 }
 
 async function parseRequest(rawRequest) {
+  const todayIso = new Date().toISOString().slice(0, 10);
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 512,
     system: PARSE_SYSTEM,
-    messages: [{ role: 'user', content: rawRequest }],
+    messages: [{ role: 'user', content: `Today: ${todayIso}\n\nRequest: ${rawRequest}` }],
   });
   const text = response.content.find(b => b.type === 'text')?.text || '{}';
   const parsed = parseFirstJsonObject(text);
