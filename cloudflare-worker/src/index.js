@@ -1151,17 +1151,21 @@ async function runChatLoop(env, sessionId, userMessage) {
 
   const textBlock = (response.content || []).find((b) => b.type === "text");
   let text = String(textBlock?.text || "").trim();
-  if (!text) {
-    text =
-      iterations >= MAX_ITERATIONS
-        ? "I wasn't able to complete this analysis. Please try a more specific question."
-        : "I couldn't find an answer for that. Try rephrasing your question.";
-  }
   let chartConfig = null;
   if (capturedChartSpec) {
     try {
       chartConfig = buildApexConfig(capturedChartSpec);
     } catch {}
+  }
+  if (!text) {
+    if (chartConfig) {
+      text = "Here's the chart based on your question.";
+    } else {
+      text =
+        iterations >= MAX_ITERATIONS
+          ? "I wasn't able to complete this analysis. Please try a more specific question."
+          : "I couldn't find an answer for that. Try rephrasing your question.";
+    }
   }
   const chartJson = chartConfig ? JSON.stringify(chartConfig) : null;
   await d1Run(env, "INSERT INTO conversation_history (session_id, role, content) VALUES (?, ?, ?)", [sessionId, "user", userMessage]);

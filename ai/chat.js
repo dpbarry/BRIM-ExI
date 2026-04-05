@@ -198,12 +198,6 @@ async function runChatLoop(sessionId, userMessage) {
   const textBlock = response.content.find(b => b.type === 'text');
   let text = (textBlock?.text || '').trim();
 
-  if (!text) {
-    text = iterations >= MAX_ITERATIONS
-      ? "I wasn't able to complete this analysis. Please try a more specific question."
-      : "I couldn't find an answer for that. Try rephrasing your question.";
-  }
-
   // Build a complete, validated ApexCharts config from the structured spec
   let chartConfig = null;
   if (capturedChartSpec) {
@@ -211,6 +205,16 @@ async function runChatLoop(sessionId, userMessage) {
       chartConfig = buildApexConfig(capturedChartSpec);
     } catch {
       chartConfig = null;
+    }
+  }
+
+  if (!text) {
+    if (chartConfig) {
+      text = "Here's the chart based on your question.";
+    } else {
+      text = iterations >= MAX_ITERATIONS
+        ? "I wasn't able to complete this analysis. Please try a more specific question."
+        : "I couldn't find an answer for that. Try rephrasing your question.";
     }
   }
 
